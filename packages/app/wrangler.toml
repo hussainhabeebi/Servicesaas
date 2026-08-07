@@ -1,0 +1,71 @@
+name = "serviceos-app"
+main = "src/index.ts"
+compatibility_date = "2024-09-25"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "BOOKING_CALENDAR"
+class_name = "BookingCalendarDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["BookingCalendarDO"]
+
+[ai]
+binding = "AI"
+
+# --- Staging -----------------------------------------------------------
+[env.staging]
+name = "serviceos-app-staging"
+vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "staging.serviceos.app" }
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "serviceos-staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
+migrations_dir = "migrations"
+
+[[env.staging.r2_buckets]]
+binding = "FILES"
+bucket_name = "serviceos-staging-files"
+
+[[env.staging.durable_objects.bindings]]
+name = "BOOKING_CALENDAR"
+class_name = "BookingCalendarDO"
+
+[env.staging.ai]
+binding = "AI"
+
+# 20:00 UTC = 00:00 Asia/Dubai — rolls each active tenant's day into daily_stats
+[env.staging.triggers]
+crons = ["0 20 * * *"]
+
+# --- Production ----------------------------------------------------------
+[env.production]
+name = "serviceos-app-production"
+vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "serviceos.app" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "serviceos-production"
+database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
+migrations_dir = "migrations"
+
+[[env.production.r2_buckets]]
+binding = "FILES"
+bucket_name = "serviceos-production-files"
+
+[[env.production.durable_objects.bindings]]
+name = "BOOKING_CALENDAR"
+class_name = "BookingCalendarDO"
+
+[env.production.ai]
+binding = "AI"
+
+[env.production.triggers]
+crons = ["0 20 * * *"]
+
+# Secrets (JWT_SECRET, WA_APP_SECRET, WA_VERIFY_TOKEN, WA_ACCESS_TOKEN,
+# RAZORPAY_*, PHONEPE_*, TELR_*, NETWORK_INTL_*, CF_API_TOKEN, CF_ZONE_ID)
+# are set per-environment via `wrangler secret put <NAME> --env <staging|production>`,
+# never committed here.

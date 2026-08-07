@@ -1,0 +1,33 @@
+name = "serviceos-site-engine"
+main = "src/index.ts"
+compatibility_date = "2024-09-25"
+compatibility_flags = ["nodejs_compat"]
+
+[env.staging]
+name = "serviceos-site-engine-staging"
+vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "staging.serviceos.app" }
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "serviceos-staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
+
+[[env.staging.r2_buckets]]
+binding = "FILES"
+bucket_name = "serviceos-staging-files"
+
+[env.production]
+name = "serviceos-site-engine-production"
+vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "serviceos.app" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "serviceos-production"
+database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
+
+[[env.production.r2_buckets]]
+binding = "FILES"
+bucket_name = "serviceos-production-files"
+
+# This Worker only reads tenants/sites/domains/services from D1 — it shares
+# the same D1 database as serviceos-app but doesn't own migrations for it.

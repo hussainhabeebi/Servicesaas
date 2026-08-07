@@ -1,0 +1,25 @@
+{
+  "name": "serviceos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ServiceOS — multi-tenant booking + billing + website + WhatsApp SaaS for local service businesses",
+  "scripts": {
+    "build": "pnpm -r --filter=./packages/** build",
+    "dev:app": "pnpm --filter @serviceos/app dev",
+    "dev:site": "pnpm --filter @serviceos/site-engine dev",
+    "dev:admin": "pnpm --filter @serviceos/admin dev",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @serviceos/platform db:generate",
+    "deploy:app:staging": "pnpm --filter @serviceos/app deploy:staging",
+    "deploy:app:production": "pnpm --filter @serviceos/app deploy:production",
+    "deploy:site:staging": "pnpm --filter @serviceos/site-engine deploy:staging",
+    "deploy:site:production": "pnpm --filter @serviceos/site-engine deploy:production"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@9.7.0"
+}
