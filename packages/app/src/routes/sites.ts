@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, desc, eq } from "drizzle-orm";
-import { createDb, schema } from "@serviceos/platform";
+import { createDb } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
+import { getSite, updateSite, publishSite, listSiteVersions, rollbackSiteVersion } from "../lib/site-management";
 
 /**
  * Website management module (spec §8): visual-editor-safe content fields
@@ -31,8 +31,7 @@ const updateSchema = z.object({
 });
 
 sitesRoute.get("/", async (c) => {
-  const db = createDb(c.env.DB);
-  const [site] = await db.select().from(schema.sites).where(eq(schema.sites.tenant_id, c.get("tenantId"))).limit(1);
+  const site = await getSite(createDb(c.env.DB), c.get("tenantId"));
   if (!site) return c.json({ error: "Not found" }, 404);
   return c.json({ site });
 });
@@ -40,67 +39,24 @@ sitesRoute.get("/", async (c) => {
 sitesRoute.patch("/", async (c) => {
   const parsed = updateSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-  const tenantId = c.get("tenantId");
-  const db = createDb(c.env.DB);
-  const [site] = await db.select().from(schema.sites).where(eq(schema.sites.tenant_id, tenantId)).limit(1);
-  if (!site) return c.json({ error: "Not found" }, 404);
-
-  const mergedContent = { ...(site.draft_content as object), ...(parsed.data.content ?? {}) };
-  await db
-    .update(schema.sites)
-    .set({
-      draft_content: mergedContent,
-      template_key: parsed.data.template_key ?? site.template_key,
-      sections_enabled: parsed.data.sections_enabled ?? site.sections_enabled,
-      updated_at: new Date().toISOString(),
-    })
-    .where(eq(schema.sites.id, site.id));
-
-  return c.json({ ok: true, draftContent: mergedContent });
+  const draftContent = await updateSite(createDb(c.env.DB), c.get("tenantId"), parsed.data);
+  if (!draftContent) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true, draftContent });
 });
 
 sitesRoute.post("/publish", async (c) => {
-  const tenantId = c.get("tenantId");
-  const db = createDb(c.env.DB);
-  const [site] = await db.select().from(schema.sites).where(eq(schema.sites.tenant_id, tenantId)).limit(1);
-  if (!site) return c.json({ error: "Not found" }, 404);
-
-  await db.insert(schema.siteVersions).values({
-    id: crypto.randomUUID(),
-    tenant_id: tenantId,
-    site_id: site.id,
-    content: site.draft_content ?? {},
-    published_by: c.get("tenantUserId"),
-  });
-
-  await db
-    .update(schema.sites)
-    .set({ live_content: site.draft_content, published_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .where(eq(schema.sites.id, site.id));
-
-  return c.json({ ok: true, publishedAt: new Date().toISOString() });
+  const publishedAt = await publishSite(createDb(c.env.DB), c.get("tenantId"), c.get("tenantUserId"));
+  if (!publishedAt) return c.json({ error: "Not found" }, 404);
+  return c.json({ ok: true, publishedAt });
 });
 
 sitesRoute.get("/versions", async (c) => {
-  const db = createDb(c.env.DB);
-  const rows = await db
-    .select()
-    .from(schema.siteVersions)
-    .where(eq(schema.siteVersions.tenant_id, c.get("tenantId")))
-    .orderBy(desc(schema.siteVersions.created_at));
-  return c.json({ versions: rows });
+  const versions = await listSiteVersions(createDb(c.env.DB), c.get("tenantId"));
+  return c.json({ versions });
 });
 
 sitesRoute.post("/versions/:id/rollback", async (c) => {
-  const tenantId = c.get("tenantId");
-  const db = createDb(c.env.DB);
-  const [version] = await db.select().from(schema.siteVersions).where(and(eq(schema.siteVersions.id, c.req.param("id")), eq(schema.siteVersions.tenant_id, tenantId))).limit(1);
-  if (!version) return c.json({ error: "Not found" }, 404);
-
-  await db
-    .update(schema.sites)
-    .set({ draft_content: version.content, live_content: version.content, updated_at: new Date().toISOString() })
-    .where(eq(schema.sites.tenant_id, tenantId));
-
+  const ok = await rollbackSiteVersion(createDb(c.env.DB), c.get("tenantId"), c.req.param("id"));
+  if (!ok) return c.json({ error: "Not found" }, 404);
   return c.json({ ok: true });
 });

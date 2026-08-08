@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { to: "/bookings", label: "Bookings" },
   { to: "/invoices", label: "Quotes & Invoices" },
   { to: "/services", label: "Services" },
+  { to: "/website", label: "Website" },
+  { to: "/domain", label: "Domain" },
   { to: "/staff", label: "Staff" },
   { to: "/team", label: "Team" },
   { to: "/whatsapp", label: "WhatsApp" },

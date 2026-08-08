@@ -9,6 +9,8 @@ import { CustomersPage } from "./pages/Customers";
 import { BookingsPage } from "./pages/Bookings";
 import { InvoicesPage } from "./pages/Invoices";
 import { ServicesPage } from "./pages/Services";
+import { WebsitePage } from "./pages/Website";
+import { DomainPage } from "./pages/Domain";
 import { StaffPage } from "./pages/Staff";
 import { TeamPage } from "./pages/Team";
 import { ConnectWhatsAppPage } from "./pages/ConnectWhatsApp";
@@ -40,6 +42,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="bookings" element={<BookingsPage />} />
           <Route path="invoices" element={<InvoicesPage />} />
           <Route path="services" element={<ServicesPage />} />
+          <Route path="website" element={<WebsitePage />} />
+          <Route path="domain" element={<DomainPage />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="team" element={<TeamPage />} />
           <Route path="whatsapp" element={<ConnectWhatsAppPage />} />

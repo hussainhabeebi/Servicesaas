@@ -155,6 +155,46 @@ export interface Referral {
   reward_status: "pending" | "granted";
   reward_description: string | null;
 }
+export interface SiteContent {
+  businessName?: string;
+  heroText?: string;
+  hours?: string;
+  phone?: string;
+  address?: string;
+  logoUrl?: string;
+  gallery?: string[];
+  testimonials?: Array<{ name: string; quote: string }>;
+  languages?: Array<"en" | "ar">;
+}
+export interface Site {
+  id: string;
+  template_key: string;
+  draft_content: SiteContent;
+  live_content: SiteContent | null;
+  sections_enabled: string[];
+  published_at: string | null;
+}
+export interface SiteVersion {
+  id: string;
+  content: SiteContent;
+  published_by: string | null;
+  created_at: string;
+}
+export interface DnsRecord {
+  type: string;
+  name: string;
+  value: string;
+}
+export interface Domain {
+  id: string;
+  domain: string;
+  type: "subdomain" | "custom";
+  status: "pending" | "verifying" | "active" | "error";
+  ssl_status: string | null;
+  dns_records: DnsRecord[] | null;
+  error_message: string | null;
+  last_checked_at: string | null;
+}
 
 // --- API surface -----------------------------------------------------------
 export const api = {
@@ -226,6 +266,17 @@ export const api = {
 
   billing: () => request<{ plan: "starter" | "growth"; subscription_status: string; next_billing_date: string | null; monthlyPrice: number }>("/api/billing"),
   changePlan: (plan: "starter" | "growth") => request("/api/billing/plan", { method: "PATCH", body: JSON.stringify({ plan }) }),
+
+  site: () => request<{ site: Site }>("/api/sites"),
+  updateSite: (body: { content?: SiteContent; template_key?: string; sections_enabled?: string[] }) =>
+    request<{ ok: true; draftContent: SiteContent }>("/api/sites", { method: "PATCH", body: JSON.stringify(body) }),
+  publishSite: () => request<{ ok: true; publishedAt: string }>("/api/sites/publish", { method: "POST" }),
+  siteVersions: () => request<{ versions: SiteVersion[] }>("/api/sites/versions"),
+  rollbackSiteVersion: (id: string) => request(`/api/sites/versions/${id}/rollback`, { method: "POST" }),
+
+  domains: () => request<{ domains: Domain[] }>("/api/domains"),
+  addDomain: (domain: string) => request<{ id: string; status: string; dnsRecords: DnsRecord[] }>("/api/domains", { method: "POST", body: JSON.stringify({ domain }) }),
+  checkDomain: (id: string) => request<{ status: string; sslStatus?: string }>(`/api/domains/${id}/check`, { method: "POST" }),
 
   whatsappConfig: () => request<{ metaAppId: string | null; embeddedSignupConfigId: string | null }>("/api/whatsapp/config"),
   whatsappStatus: () => request<{ connected: boolean; whatsappNumber: string | null; onboardingType: "coexistence" | "new_number" | null }>("/api/whatsapp/status"),

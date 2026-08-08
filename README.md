@@ -182,9 +182,15 @@ itself — it has no `wrangler.toml`.
   completed (guarded against double-counting), surfaced as a milestone
   badge on the Customers page. No separate rewards ledger — a visibility
   tool, not an automated discount engine.
-- **Domain module**: Cloudflare for SaaS custom-hostname registration,
-  plain-language DNS record translation, status polling
-  (`POST /domains/:id/check`), subdomain always active as fallback.
+- **Website + domain UI, both self-serve and admin-side**: the site content
+  editor (draft/publish/version-rollback) and Cloudflare for SaaS
+  custom-domain flow (DNS record translation, status polling) had real
+  backends from the start but no frontend anywhere until now. Core logic
+  lives in `lib/site-management.ts`/`lib/domain-management.ts`, called by
+  both the tenant's own **Website**/**Domain** pages (self-serve) and the
+  admin panel's tenant detail page (support override, audit-logged as
+  `edit_tenant_site`/`publish_tenant_site`/`add_tenant_domain`) — one
+  backend, two UIs, so they can never drift out of sync with each other.
 - **Reporting**: `daily_stats` rollup (scheduled Worker cron, 00:00
   Asia/Dubai), a "Today" endpoint for the home screen (today's bookings +
   money in/owed), and a cash-flow forecast (confirmed bookings due in the

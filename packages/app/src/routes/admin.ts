@@ -5,6 +5,8 @@ import { createDb, schema, hashPassword, signAccessToken } from "@serviceos/plat
 import type { AppContext } from "@serviceos/platform";
 import { generateTempPassword } from "../lib/temp-password";
 import { clearedLockoutState } from "../lib/lockout";
+import { getSite, updateSite, publishSite } from "../lib/site-management";
+import { listDomains, addDomain, checkDomain } from "../lib/domain-management";
 
 /** Cross-tenant ops endpoints for the internal /admin dashboard. Callers must hold a valid admin JWT (see index.ts wiring). */
 export const adminRoute = new Hono<AppContext>();
@@ -139,4 +141,94 @@ adminRoute.post("/tenants/:id/impersonate", async (c) => {
   });
 
   return c.json({ accessToken, subdomain: tenant.subdomain });
+});
+
+// --- Website support tools — same lib/site-management.ts the tenant's own dashboard uses ---
+
+adminRoute.get("/tenants/:id/site", async (c) => {
+  const site = await getSite(createDb(c.env.DB), c.req.param("id"));
+  if (!site) return c.json({ error: "Not found" }, 404);
+  return c.json({ site });
+});
+
+const siteContentSchema = z.object({
+  businessName: z.string().optional(),
+  heroText: z.string().optional(),
+  hours: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  logoUrl: z.string().optional(),
+  gallery: z.array(z.string()).optional(),
+  testimonials: z.array(z.object({ name: z.string(), quote: z.string() })).optional(),
+  languages: z.array(z.enum(["en", "ar"])).optional(),
+});
+const siteUpdateSchema = z.object({
+  content: siteContentSchema.optional(),
+  template_key: z.string().optional(),
+  sections_enabled: z.array(z.string()).optional(),
+});
+
+adminRoute.patch("/tenants/:id/site", async (c) => {
+  const parsed = siteUpdateSchema.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const tenantId = c.req.param("id");
+  const db = createDb(c.env.DB);
+  const draftContent = await updateSite(db, tenantId, parsed.data);
+  if (!draftContent) return c.json({ error: "Not found" }, 404);
+
+  await db.insert(schema.adminAuditLog).values({
+    id: crypto.randomUUID(),
+    admin_user_id: c.get("adminUserId")!,
+    action: "edit_tenant_site",
+    target_tenant_id: tenantId,
+  });
+  return c.json({ ok: true, draftContent });
+});
+
+adminRoute.post("/tenants/:id/site/publish", async (c) => {
+  const tenantId = c.req.param("id");
+  const db = createDb(c.env.DB);
+  const publishedAt = await publishSite(db, tenantId, undefined);
+  if (!publishedAt) return c.json({ error: "Not found" }, 404);
+
+  await db.insert(schema.adminAuditLog).values({
+    id: crypto.randomUUID(),
+    admin_user_id: c.get("adminUserId")!,
+    action: "publish_tenant_site",
+    target_tenant_id: tenantId,
+  });
+  return c.json({ ok: true, publishedAt });
+});
+
+// --- Domain support tools — same lib/domain-management.ts the tenant's own dashboard uses ---
+
+adminRoute.get("/tenants/:id/domains", async (c) => {
+  const domains = await listDomains(createDb(c.env.DB), c.req.param("id"));
+  return c.json({ domains });
+});
+
+const domainAddSchema = z.object({ domain: z.string().min(3) });
+
+adminRoute.post("/tenants/:id/domains", async (c) => {
+  const parsed = domainAddSchema.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const tenantId = c.req.param("id");
+  const result = await addDomain(c.env, tenantId, parsed.data.domain);
+
+  await createDb(c.env.DB)
+    .insert(schema.adminAuditLog)
+    .values({
+      id: crypto.randomUUID(),
+      admin_user_id: c.get("adminUserId")!,
+      action: "add_tenant_domain",
+      target_tenant_id: tenantId,
+      detail: parsed.data.domain,
+    });
+  return c.json(result, 201);
+});
+
+adminRoute.post("/tenants/:id/domains/:domainId/check", async (c) => {
+  const result = await checkDomain(c.env, c.req.param("id"), c.req.param("domainId"));
+  if (!result) return c.json({ error: "Not found" }, 404);
+  return c.json(result);
 });

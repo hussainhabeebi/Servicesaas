@@ -76,6 +76,34 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface SiteContent {
+  businessName?: string;
+  heroText?: string;
+  hours?: string;
+  phone?: string;
+}
+export interface Site {
+  id: string;
+  template_key: string;
+  draft_content: SiteContent;
+  live_content: SiteContent | null;
+  sections_enabled: string[];
+  published_at: string | null;
+}
+export interface DnsRecord {
+  type: string;
+  name: string;
+  value: string;
+}
+export interface Domain {
+  id: string;
+  domain: string;
+  type: "subdomain" | "custom";
+  status: "pending" | "verifying" | "active" | "error";
+  error_message: string | null;
+  last_checked_at: string | null;
+}
+
 export const api = {
   listTenants: () => request<{ tenants: Tenant[] }>("/admin/tenants"),
   getTenant: (id: string) => request<TenantDetail>(`/admin/tenants/${id}`),
@@ -92,4 +120,15 @@ export const api = {
   inviteAdmin: (name: string, email: string) =>
     request<{ id: string; tempPassword: string }>("/admin/users", { method: "POST", body: JSON.stringify({ name, email }) }),
   deactivateAdmin: (id: string) => request(`/admin/users/${id}/deactivate`, { method: "PATCH" }),
+
+  getTenantSite: (tenantId: string) => request<{ site: Site }>(`/admin/tenants/${tenantId}/site`),
+  updateTenantSite: (tenantId: string, content: SiteContent) =>
+    request<{ ok: true; draftContent: SiteContent }>(`/admin/tenants/${tenantId}/site`, { method: "PATCH", body: JSON.stringify({ content }) }),
+  publishTenantSite: (tenantId: string) => request<{ ok: true; publishedAt: string }>(`/admin/tenants/${tenantId}/site/publish`, { method: "POST" }),
+
+  getTenantDomains: (tenantId: string) => request<{ domains: Domain[] }>(`/admin/tenants/${tenantId}/domains`),
+  addTenantDomain: (tenantId: string, domain: string) =>
+    request<{ id: string; status: string; dnsRecords: DnsRecord[] }>(`/admin/tenants/${tenantId}/domains`, { method: "POST", body: JSON.stringify({ domain }) }),
+  checkTenantDomain: (tenantId: string, domainId: string) =>
+    request<{ status: string }>(`/admin/tenants/${tenantId}/domains/${domainId}/check`, { method: "POST" }),
 };

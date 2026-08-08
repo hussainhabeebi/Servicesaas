@@ -113,7 +113,7 @@ export const adminAuditLog = sqliteTable(
   {
     id: id(),
     admin_user_id: text("admin_user_id").notNull(),
-    action: text("action").notNull(), // reset_tenant_password|impersonate_tenant
+    action: text("action").notNull(), // reset_tenant_password|impersonate_tenant|edit_tenant_site|publish_tenant_site|add_tenant_domain
     target_tenant_id: text("target_tenant_id"),
     detail: text("detail"),
     created_at: timestamps.created_at,

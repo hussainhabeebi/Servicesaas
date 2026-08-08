@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, appBaseFromSubdomain, type TenantDetail } from "../api";
+import { TenantSiteAndDomain } from "./TenantSiteAndDomain";
 
 export function TenantDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -102,6 +103,8 @@ export function TenantDetailPage() {
           <span style={{ fontSize: "0.82rem", color: "#4338ca" }}>Relay this to the tenant directly — nothing was sent automatically.</span>
         </div>
       )}
+
+      {id && <TenantSiteAndDomain tenantId={id} />}
     </div>
   );
 }
