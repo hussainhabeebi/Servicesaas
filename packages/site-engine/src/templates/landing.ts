@@ -81,12 +81,15 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   const canonicalUrl = `https://${rootDomain}/`;
   const description =
     "Booking, billing, a website, and a WhatsApp bot for local service businesses — cleaning, salons, repair, tutoring, pet care, fitness, spa & laundry. Starter AED 99, Growth AED 199.";
+  // Hero typewriter cycles the verticals list — one source of truth with the signup form's own options.
+  const heroWords = VERTICAL_OPTIONS.filter((v) => v.value !== "generic").map((v) => v.label);
+  const heroWordsJson = JSON.stringify(heroWords);
 
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>ServBazaar — The Operating System for Service Companies</title>
 <meta name="description" content="${description}" />
 <link rel="canonical" href="${canonicalUrl}" />
@@ -116,12 +119,14 @@ ${jsonLd(rootDomain)}
   nav .links a.nav-link { color: var(--muted); text-decoration: none; font-size: 0.92rem; display: none; }
   nav button.login { background: none; border: 1px solid #d1d5db; padding: 0.5rem 1.1rem; border-radius: 999px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
   nav a.nav-cta { background: var(--ink); color: #fff; padding: 0.55rem 1.2rem; border-radius: 999px; text-decoration: none; font-weight: 700; font-size: 0.88rem; }
-  nav button.hamburger { display: inline-flex; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 0.25rem 0.4rem; }
+  nav button.hamburger { display: inline-flex; align-items: center; justify-content: center; background: none; border: none; font-size: 1.4rem; cursor: pointer; width: 44px; height: 44px; }
   @media (min-width: 720px) { nav .links a.nav-link { display: inline; } nav button.hamburger { display: none; } }
+  @media (max-width: 719px) { nav .links button.login, nav .links a.nav-cta { display: none; } }
 
-  .mobile-menu { display: none; position: fixed; top: 60px; left: 0; right: 0; background: #fff; border-bottom: 1px solid #f0f0f2; box-shadow: 0 12px 24px rgba(0,0,0,0.08); z-index: 49; padding: 1rem 1.5rem; flex-direction: column; gap: 0.9rem; }
-  .mobile-menu.open { display: flex; }
-  .mobile-menu a { color: var(--ink); text-decoration: none; font-size: 0.95rem; font-weight: 600; }
+  .mobile-menu { position: fixed; top: 60px; left: 0; right: 0; background: #fff; border-bottom: 1px solid #f0f0f2; box-shadow: 0 12px 24px rgba(0,0,0,0.08); z-index: 49; padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: 0.9rem; transform: translateY(-10px); opacity: 0; visibility: hidden; transition: transform 0.22s ease, opacity 0.22s ease, visibility 0.22s; }
+  .mobile-menu.open { transform: translateY(0); opacity: 1; visibility: visible; }
+  .mobile-menu a { color: var(--ink); text-decoration: none; font-size: 0.98rem; font-weight: 600; padding: 0.4rem 0; min-height: 44px; display: flex; align-items: center; }
+  .mobile-menu a.mobile-cta { background: var(--accent); color: #fff; border-radius: 999px; padding: 0 1.2rem; justify-content: center; margin-top: 0.2rem; }
   @media (min-width: 720px) { .mobile-menu { display: none !important; } }
 
   header { position: relative; padding: 5rem 1.5rem 4rem; text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-dark), var(--ink)); background-size: 200% 200%; animation: gradientShift 12s ease infinite; color: #fff; overflow: hidden; }
@@ -131,19 +136,49 @@ ${jsonLd(rootDomain)}
   header::after { width: 220px; height: 220px; background: var(--gold); bottom: -80px; right: -40px; animation-delay: -4s; }
   @keyframes floatBlob { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-24px) scale(1.08); } }
   header .inner { position: relative; z-index: 1; }
+  .hero-grid { display: grid; grid-template-columns: 1fr; align-items: center; gap: 2.5rem; text-align: center; }
+  @media (min-width: 900px) { .hero-grid { grid-template-columns: 1.15fr 0.85fr; text-align: left; } }
   header h1 { margin: 0 0 0.75rem; font-size: clamp(1.9rem, 5vw, 3rem); font-weight: 800; opacity: 0; animation: fadeInUp 0.7s ease forwards; }
+  .tw-cursor { display: inline-block; font-weight: 300; animation: blink 0.9s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
   header p { max-width: 640px; margin: 0 auto; font-size: 1.15rem; opacity: 0; animation: fadeInUp 0.7s ease 0.15s forwards; }
+  @media (min-width: 900px) { header p { margin: 0; } }
   header .cta-row { margin-top: 2rem; opacity: 0; animation: fadeInUp 0.7s ease 0.3s forwards; }
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
   .cta { display: inline-block; padding: 0.95rem 1.9rem; background: #fff; color: var(--accent); border-radius: 999px; text-decoration: none; font-weight: 700; transition: transform 0.2s, box-shadow 0.2s; }
   .cta:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
   .cta.ghost { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.6); margin-left: 0.75rem; }
   .cta.dark { background: var(--ink); color: #fff; }
+  @media (max-width: 480px) { header .cta-row { display: flex; flex-direction: column; gap: 0.7rem; } header .cta-row .cta { width: 100%; text-align: center; margin-left: 0; } }
+
+  .hero-visual { display: flex; justify-content: center; opacity: 0; animation: fadeInUp 0.7s ease 0.45s forwards; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; }
+  .phone { position: relative; width: 220px; aspect-ratio: 9 / 19; background: var(--ink); border-radius: 34px; padding: 10px; box-shadow: 0 30px 60px rgba(0,0,0,0.35), inset 0 0 0 2px rgba(255,255,255,0.08); }
+  .phone-screen { position: relative; width: 100%; height: 100%; background: #fff; border-radius: 24px; overflow: hidden; }
+  .slide { position: absolute; inset: 0; opacity: 0; transform: translateX(10px); transition: opacity 0.4s ease, transform 0.4s ease; padding: 1rem 0.85rem; color: var(--ink); text-align: left; }
+  .slide.active { opacity: 1; transform: translateX(0); }
+  .slide .s-title { font-weight: 800; font-size: 0.82rem; margin-bottom: 0.7rem; }
+  .s-card { background: var(--cream); border-radius: 10px; padding: 0.5rem 0.6rem; margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 2px; }
+  .s-time { font-weight: 700; font-size: 0.72rem; color: var(--accent); }
+  .s-name { font-size: 0.68rem; color: #374151; }
+  .s-badge { align-self: flex-start; font-size: 0.6rem; font-weight: 700; padding: 2px 7px; border-radius: 99px; color: #fff; margin-top: 2px; }
+  .s-badge-teal { background: var(--accent); }
+  .s-badge-green { background: #16a34a; }
+  .s-bubble { max-width: 88%; padding: 0.4rem 0.6rem; border-radius: 12px; margin-bottom: 0.4rem; font-size: 0.66rem; line-height: 1.35; }
+  .s-bubble-in { background: var(--cream); color: #111; border-bottom-left-radius: 3px; }
+  .s-bubble-out { background: var(--accent); color: #fff; margin-left: auto; border-bottom-right-radius: 3px; }
+  .s-line { display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.3rem 0; border-bottom: 1px dashed #e5e7eb; }
+  .s-total { font-weight: 800; border-bottom: none; margin-top: 0.2rem; }
+  .phone-dots { display: flex; justify-content: center; gap: 6px; margin-top: 1rem; }
+  .phone-dots .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.35); transition: background 0.3s, transform 0.3s; }
+  .phone-dots .dot.active { background: #fff; transform: scale(1.3); }
+  @media (max-width: 899px) { .phone { width: 180px; } }
 
   main { max-width: 1040px; margin: 0 auto; padding: 0 1.5rem; }
   section { margin: 5rem 0; }
   h2 { text-align: center; font-size: 1.8rem; margin-bottom: 0.5rem; }
   .subhead { text-align: center; color: var(--muted); margin-bottom: 2.5rem; }
+  @media (max-width: 719px) { header { padding: 3rem 1.25rem 2.5rem; } section { margin: 3.25rem 0; } }
 
   .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
   .reveal.visible { opacity: 1; transform: translateY(0); }
@@ -240,7 +275,7 @@ ${jsonLd(rootDomain)}
   footer .by { font-size: 0.82rem; }
   footer .by a { color: var(--accent); text-decoration: none; font-weight: 600; }
 
-  .sticky-cta { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60; background: #fff; border-top: 1px solid #e5e7eb; padding: 0.8rem 1.2rem; box-shadow: 0 -6px 20px rgba(0,0,0,0.08); align-items: center; justify-content: space-between; gap: 1rem; transform: translateY(100%); transition: transform 0.3s ease; }
+  .sticky-cta { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60; background: #fff; border-top: 1px solid #e5e7eb; padding: 0.8rem 1.2rem; padding-bottom: max(0.8rem, env(safe-area-inset-bottom)); box-shadow: 0 -6px 20px rgba(0,0,0,0.08); align-items: center; justify-content: space-between; gap: 1rem; transform: translateY(100%); transition: transform 0.3s ease; }
   .sticky-cta.show { transform: translateY(0); }
   .sticky-cta span { font-weight: 700; font-size: 0.9rem; }
   @media (max-width: 719px) { .sticky-cta { display: flex; } }
@@ -278,15 +313,48 @@ ${jsonLd(rootDomain)}
   <a href="#pricing" onclick="closeMobileMenu()">Pricing</a>
   <a href="#faq" onclick="closeMobileMenu()">FAQ</a>
   <a href="#" onclick="closeMobileMenu(); openLogin(); return false;">Log in</a>
+  <a class="mobile-cta" href="#signup" onclick="closeMobileMenu()">Get Started</a>
 </div>
 
 <header>
-  <div class="inner">
-    <h1>The Operating System for Service Companies</h1>
-    <p>Booking, billing, a website, and a WhatsApp bot — all in one place, built for cleaning, salons, repair, tutoring, pet care, fitness, and spa &amp; laundry businesses.</p>
-    <div class="cta-row">
-      <a class="cta" href="#signup">Get Started Free</a>
-      <a class="cta ghost" href="#pricing">See pricing</a>
+  <div class="inner hero-grid">
+    <div class="hero-copy">
+      <h1>The Operating System for <span class="tw-word" id="tw-word">${heroWords[0]}</span><span class="tw-cursor">|</span> Businesses</h1>
+      <p>Booking, billing, a website, and a WhatsApp bot — all in one place, built for cleaning, salons, repair, tutoring, pet care, fitness, and spa &amp; laundry businesses.</p>
+      <div class="cta-row">
+        <a class="cta" href="#signup">Get Started Free</a>
+        <a class="cta ghost" href="#pricing">See pricing</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="slide active">
+              <div class="s-title">📅 Today</div>
+              <div class="s-card"><span class="s-time">10:00</span><span class="s-name">Aisha M. — Deep clean</span><span class="s-badge s-badge-teal">Scheduled</span></div>
+              <div class="s-card"><span class="s-time">14:30</span><span class="s-name">Omar R. — Standard clean</span><span class="s-badge s-badge-green">Done</span></div>
+            </div>
+            <div class="slide">
+              <div class="s-title">💬 WhatsApp</div>
+              <div class="s-bubble s-bubble-in">Hi! Looking for a deep clean this Friday</div>
+              <div class="s-bubble s-bubble-out">Sure! 2-bed apt starts at AED 180. What time works?</div>
+              <div class="s-bubble s-bubble-in">3pm please</div>
+              <div class="s-bubble s-bubble-out">✅ You're booked for Friday 3pm!</div>
+            </div>
+            <div class="slide">
+              <div class="s-title">🧾 Invoice #1042</div>
+              <div class="s-line"><span>Deep clean (2-bed)</span><span>AED 180.00</span></div>
+              <div class="s-line"><span>VAT (5%)</span><span>AED 9.00</span></div>
+              <div class="s-line s-total"><span>Total</span><span>AED 189.00</span></div>
+              <div class="s-badge s-badge-green">Paid</div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-dots">
+          <span class="dot active"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -469,6 +537,46 @@ ${jsonLd(rootDomain)}
 <script>
   var API_BASE = ${JSON.stringify(apiBaseUrl)};
   var APP_BASE = ${JSON.stringify(`https://app.${rootDomain}`)};
+
+  // Hero headline typewriter — cycles the verticals list. The word is
+  // already fully shown server-side (twEl's initial textContent) so there's
+  // no flash of empty text before JS loads; this just takes over from there.
+  (function () {
+    var words = ${heroWordsJson};
+    var twEl = document.getElementById('tw-word');
+    if (!twEl || words.length < 2) return;
+    var wordIndex = 0, charIndex = words[0].length, deleting = false;
+    function step() {
+      var word = words[wordIndex];
+      if (!deleting) {
+        charIndex++;
+        if (charIndex > word.length) { deleting = true; setTimeout(step, 1500); return; }
+        twEl.textContent = word.slice(0, charIndex);
+        setTimeout(step, 75);
+      } else {
+        charIndex--;
+        if (charIndex < 0) { deleting = false; wordIndex = (wordIndex + 1) % words.length; charIndex = 0; setTimeout(step, 300); return; }
+        twEl.textContent = word.slice(0, charIndex);
+        setTimeout(step, 40);
+      }
+    }
+    setTimeout(step, 1800);
+  })();
+
+  // Compact "app" slideshow in the hero phone mockup
+  (function () {
+    var slides = document.querySelectorAll('.phone-screen .slide');
+    var dots = document.querySelectorAll('.phone-dots .dot');
+    if (!slides.length) return;
+    var i = 0;
+    setInterval(function () {
+      slides[i].classList.remove('active');
+      dots[i].classList.remove('active');
+      i = (i + 1) % slides.length;
+      slides[i].classList.add('active');
+      dots[i].classList.add('active');
+    }, 3200);
+  })();
 
   // Scroll-reveal animations (sections + step cards individually)
   var revealEls = document.querySelectorAll('.reveal, .step');
