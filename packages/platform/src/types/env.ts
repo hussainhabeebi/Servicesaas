@@ -6,13 +6,13 @@ export interface Env {
   DB: D1Database;
   FILES: R2Bucket;
   BOOKING_CALENDAR: DurableObjectNamespace;
-  AI?: Ai;
 
   // Secrets
   JWT_SECRET: string;
   CHATWOOT_PLATFORM_API_TOKEN: string; // Super Admin token — creates a Chatwoot Account per tenant, nothing else
   CHATWOOT_AGENT_BOT_TOKEN: string; // one token, added to every tenant's account, used for all messaging
   CHATWOOT_WEBHOOK_TOKEN: string; // shared secret embedded in the Chatwoot webhook URL
+  GEMINI_API_KEY: string; // powers conversation understanding, voice transcription, and photo-based quoting
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
   PHONEPE_MERCHANT_ID?: string;
@@ -32,6 +32,7 @@ export interface Env {
   CHATWOOT_AGENT_BOT_ID: string; // numeric ID of the platform Agent Bot, as a string — GET /platform/api/v1/agent_bots to find it
   META_APP_ID: string; // public — used by the frontend Embedded Signup widget
   META_EMBEDDED_SIGNUP_CONFIG_ID: string; // public — Meta App's Embedded Signup configuration ID
+  GEMINI_MODEL: string; // e.g. "gemini-2.0-flash" — kept configurable since model names change over time
 }
 
 export interface AppContext {

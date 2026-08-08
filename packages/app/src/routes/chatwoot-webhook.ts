@@ -11,6 +11,7 @@ import {
 } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { processInboundText } from "../lib/bot-flow";
+import { geminiTranscribeAudio, geminiDescribeImage } from "../lib/gemini";
 
 /**
  * Single webhook endpoint for every tenant's Chatwoot inbox — each inbox is
@@ -137,14 +138,7 @@ chatwootWebhookRoute.post("/", async (c) => {
     if (bytes) {
       mediaKey = `${tenantId}/wa-audio/${payload.id}`;
       await c.env.FILES.put(mediaKey, bytes);
-      if (c.env.AI) {
-        try {
-          const result = (await c.env.AI.run("@cf/openai/whisper", { audio: [...new Uint8Array(bytes)] })) as { text?: string };
-          transcript = result.text ?? "";
-        } catch {
-          transcript = "";
-        }
-      }
+      transcript = await geminiTranscribeAudio(c.env.GEMINI_API_KEY, c.env.GEMINI_MODEL, bytes, "audio/ogg").catch(() => "");
     }
     await logMessage(db, tenantId, internalConversationId, "in", "audio", transcript || "[voice note]", payload.id, mediaKey);
     reply = transcript
@@ -160,19 +154,12 @@ chatwootWebhookRoute.post("/", async (c) => {
     await logMessage(db, tenantId, internalConversationId, "in", "image", payload.content || "[photo]", payload.id, mediaKey);
     // Photo-based quoting (spec §5/§10): give a rough estimate range from the image;
     // this is a first-pass heuristic prompt, not a trained pricing model.
-    if (bytes && c.env.AI) {
-      try {
-        const vision = (await c.env.AI.run("@cf/llava-hf/llava-1.5-7b-hf", {
-          image: [...new Uint8Array(bytes)],
-          prompt: "Describe the condition/scope of the job shown for a home service quote. One short sentence.",
-        })) as { description?: string };
-        reply = `Thanks for the photo! Based on what we can see (${vision.description ?? "your job"}), a team member will confirm an exact estimate shortly.`;
-      } catch {
-        reply = "Thanks for the photo — a team member will review it and send an estimate shortly.";
-      }
-    } else {
-      reply = "Thanks for the photo — a team member will review it and send an estimate shortly.";
-    }
+    const description = bytes
+      ? await geminiDescribeImage(c.env.GEMINI_API_KEY, c.env.GEMINI_MODEL, bytes, "image/jpeg", "Describe the condition/scope of the job shown for a home service quote. One short sentence.").catch(() => "")
+      : "";
+    reply = description
+      ? `Thanks for the photo! Based on what we can see (${description}), a team member will confirm an exact estimate shortly.`
+      : "Thanks for the photo — a team member will review it and send an estimate shortly.";
   } else if (payload.content) {
     await logMessage(db, tenantId, internalConversationId, "in", "text", payload.content, payload.id);
     reply = await processInboundText(c.env, tenantId, phone, contactName, payload.content);

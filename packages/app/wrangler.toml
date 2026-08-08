@@ -11,13 +11,10 @@ class_name = "BookingCalendarDO"
 tag = "v1"
 new_sqlite_classes = ["BookingCalendarDO"]
 
-[ai]
-binding = "AI"
-
 # --- Staging -----------------------------------------------------------
 [env.staging]
 name = "serviceos-app-staging"
-vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "stg.servbazaar.com", CHATWOOT_BASE_URL = "https://app.aiingo.com", CHATWOOT_AGENT_BOT_ID = "REPLACE_WITH_CHATWOOT_AGENT_BOT_ID", META_APP_ID = "REPLACE_WITH_META_APP_ID", META_EMBEDDED_SIGNUP_CONFIG_ID = "REPLACE_WITH_META_EMBEDDED_SIGNUP_CONFIG_ID" }
+vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "stg.servbazaar.com", CHATWOOT_BASE_URL = "https://app.aiingo.com", CHATWOOT_AGENT_BOT_ID = "REPLACE_WITH_CHATWOOT_AGENT_BOT_ID", META_APP_ID = "REPLACE_WITH_META_APP_ID", META_EMBEDDED_SIGNUP_CONFIG_ID = "REPLACE_WITH_META_EMBEDDED_SIGNUP_CONFIG_ID", GEMINI_MODEL = "gemini-2.0-flash" }
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -33,9 +30,6 @@ bucket_name = "serviceos-staging-files"
 name = "BOOKING_CALENDAR"
 class_name = "BookingCalendarDO"
 
-[env.staging.ai]
-binding = "AI"
-
 # 20:00 UTC = 00:00 Asia/Dubai — rolls each active tenant's day into daily_stats
 [env.staging.triggers]
 crons = ["0 20 * * *"]
@@ -43,7 +37,7 @@ crons = ["0 20 * * *"]
 # --- Production ----------------------------------------------------------
 [env.production]
 name = "serviceos-app-production"
-vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com", CHATWOOT_BASE_URL = "https://app.aiingo.com", CHATWOOT_AGENT_BOT_ID = "REPLACE_WITH_CHATWOOT_AGENT_BOT_ID", META_APP_ID = "REPLACE_WITH_META_APP_ID", META_EMBEDDED_SIGNUP_CONFIG_ID = "REPLACE_WITH_META_EMBEDDED_SIGNUP_CONFIG_ID" }
+vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com", CHATWOOT_BASE_URL = "https://app.aiingo.com", CHATWOOT_AGENT_BOT_ID = "REPLACE_WITH_CHATWOOT_AGENT_BOT_ID", META_APP_ID = "REPLACE_WITH_META_APP_ID", META_EMBEDDED_SIGNUP_CONFIG_ID = "REPLACE_WITH_META_EMBEDDED_SIGNUP_CONFIG_ID", GEMINI_MODEL = "gemini-2.0-flash" }
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -59,13 +53,11 @@ bucket_name = "serviceos-production-files"
 name = "BOOKING_CALENDAR"
 class_name = "BookingCalendarDO"
 
-[env.production.ai]
-binding = "AI"
-
 [env.production.triggers]
 crons = ["0 20 * * *"]
 
 # Secrets (JWT_SECRET, CHATWOOT_PLATFORM_API_TOKEN, CHATWOOT_AGENT_BOT_TOKEN,
-# CHATWOOT_WEBHOOK_TOKEN, RAZORPAY_*, PHONEPE_*, TELR_*, NETWORK_INTL_*,
-# CF_API_TOKEN, CF_ZONE_ID, ADMIN_API_TOKEN) are set per-environment via
-# `wrangler secret put <NAME> --env <staging|production>`, never committed here.
+# CHATWOOT_WEBHOOK_TOKEN, GEMINI_API_KEY, RAZORPAY_*, PHONEPE_*, TELR_*,
+# NETWORK_INTL_*, CF_API_TOKEN, CF_ZONE_ID, ADMIN_API_TOKEN) are set
+# per-environment via `wrangler secret put <NAME> --env <staging|production>`,
+# never committed here.

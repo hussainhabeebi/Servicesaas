@@ -84,12 +84,17 @@ itself — it has no `wrangler.toml`.
   `vat_rate`), invoice PDF generation (`pdf-lib`) stored in R2 and sent
   over WhatsApp, payment recording + gateway payment links, cash/partial/
   overdue tracking.
-- **WhatsApp bot** (`packages/app/src/lib/bot-flow.ts`): rule-based
-  enquiry → auto-quote → booking-confirmation flow that writes directly
-  into the same `bookings` table the app UI reads (no sync lag). Voice
-  notes are transcribed and photos are described via Workers AI
-  (`@cf/openai/whisper`, `@cf/llava-hf/llava-1.5-7b-hf`) when the `AI`
-  binding is available, then routed through the same text flow.
+- **WhatsApp bot** (`packages/app/src/lib/bot-flow.ts`): enquiry ->
+  auto-quote -> booking-confirmation flow that writes directly into the
+  same `bookings` table the app UI reads (no sync lag). Conversation
+  *state* stays deterministic (tracked via the lead row's own columns:
+  service_interest -> area -> quoted -> booked); *interpreting* each
+  message — matching a service, extracting an area or date/time, judging
+  urgency — is delegated to Gemini (`packages/app/src/lib/gemini.ts`,
+  `GEMINI_API_KEY`/`GEMINI_MODEL`) rather than regex/keyword matching.
+  Voice notes are transcribed and photos are described the same way
+  (`geminiTranscribeAudio`, `geminiDescribeImage`), then routed through
+  the same text flow.
 - **Leads pipeline**: Hot/Warm/Neutral/Cold mood tagging, Open → Quoted →
   Booked → Closed status, conversion to a real booking.
 - **Website module**: draft/live content split (`sites.draft_content` /
@@ -143,9 +148,10 @@ pnpm --filter @serviceos/admin dev          # admin dashboard on :4173
 Each Worker needs its secrets set locally (`wrangler secret put <NAME>` or
 a `.dev.vars` file — see `packages/platform/src/types/env.ts` for the full
 list): `JWT_SECRET`, `CHATWOOT_PLATFORM_API_TOKEN`, `CHATWOOT_AGENT_BOT_TOKEN`,
-`CHATWOOT_WEBHOOK_TOKEN`, `ADMIN_API_TOKEN`, plus whichever payment gateway
-keys you're testing against. `CHATWOOT_BASE_URL`, `CHATWOOT_AGENT_BOT_ID`,
-`META_APP_ID`, and `META_EMBEDDED_SIGNUP_CONFIG_ID` are plain vars in
+`CHATWOOT_WEBHOOK_TOKEN`, `GEMINI_API_KEY`, `ADMIN_API_TOKEN`, plus whichever
+payment gateway keys you're testing against. `CHATWOOT_BASE_URL`,
+`CHATWOOT_AGENT_BOT_ID`, `META_APP_ID`, `META_EMBEDDED_SIGNUP_CONFIG_ID`, and
+`GEMINI_MODEL` are plain vars in
 `wrangler.toml`, not secrets.
 
 ## Deploying
