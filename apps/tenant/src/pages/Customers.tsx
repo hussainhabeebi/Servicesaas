@@ -37,7 +37,7 @@ export function CustomersPage() {
               <td style={td}>
                 {c.tags?.map((t) => (
                   <span key={t} style={{ marginRight: 4 }}>
-                    <Badge color="#4F46E5">{t}</Badge>
+                    <Badge color="#036f71">{t}</Badge>
                   </span>
                 ))}
               </td>
