@@ -3,6 +3,7 @@ import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { createDb, schema, hashPassword } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
+import { generateTempPassword } from "../lib/temp-password";
 
 /** Team management (spec: "assign jobs/crews with their own logins, no shared passwords"). */
 export const teamRoute = new Hono<AppContext>();
@@ -15,11 +16,6 @@ teamRoute.get("/", async (c) => {
     .where(eq(schema.tenantUsers.tenant_id, c.get("tenantId")));
   return c.json({ team: rows });
 });
-
-function generateTempPassword(): string {
-  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
 
 const inviteSchema = z.object({
   name: z.string().min(2).max(120),

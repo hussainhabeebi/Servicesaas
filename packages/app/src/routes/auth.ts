@@ -3,6 +3,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { createDb, schema, verifyPassword, signAccessToken } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
+import { isLocked, nextLockoutState, clearedLockoutState, LOCKOUT_MINUTES } from "../lib/lockout";
 
 /**
  * Global login (not bound to a resolved tenant host) — an owner/staff
@@ -30,8 +31,18 @@ authRoute.post("/login", async (c) => {
   const user = byEmail[0] ?? byPhone[0];
 
   if (!user || !user.active) return c.json({ error: "Invalid credentials" }, 401);
+  if (isLocked(user.locked_until)) {
+    return c.json({ error: `Too many failed attempts — try again in a few minutes`, lockedUntil: user.locked_until }, 429);
+  }
+
   const valid = await verifyPassword(password, user.password_hash);
-  if (!valid) return c.json({ error: "Invalid credentials" }, 401);
+  if (!valid) {
+    const next = nextLockoutState(user.failed_login_attempts);
+    await db.update(schema.tenantUsers).set(next).where(eq(schema.tenantUsers.id, user.id));
+    if (next.locked_until) return c.json({ error: `Too many failed attempts — locked for ${LOCKOUT_MINUTES} minutes` }, 429);
+    return c.json({ error: "Invalid credentials" }, 401);
+  }
+  await db.update(schema.tenantUsers).set(clearedLockoutState).where(eq(schema.tenantUsers.id, user.id));
 
   const [tenant] = await db
     .select({ id: schema.tenants.id, status: schema.tenants.status, subdomain: schema.tenants.subdomain })

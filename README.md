@@ -189,10 +189,18 @@ itself — it has no `wrangler.toml`.
   Asia/Dubai), a "Today" endpoint for the home screen (today's bookings +
   money in/owed), and a cash-flow forecast (confirmed bookings due in the
   next 7 days).
-- **Admin dashboard**: tenant list/detail, suspend/reactivate,
-  plan upgrade/downgrade, platform-wide stats — guarded by a static admin
-  bearer token (`ADMIN_API_TOKEN`), not a tenant JWT, since it's
-  cross-tenant.
+- **Admin dashboard**: tenant list/detail, suspend/reactivate, plan
+  upgrade/downgrade, platform-wide stats, plus two support tools —
+  **reset a tenant owner's password** and **log in as a tenant** (both
+  audit-logged to `admin_audit_log`). Guarded by real per-person admin
+  accounts (`admin_users`, `POST /admin-auth/login`, password + lockout,
+  same as tenant login) rather than a single shared secret — see
+  "Securing admin access" below for how day-to-day access now works and
+  how to create the first admin account.
+- **Login security** (both tenant and admin): PBKDF2 password hashing,
+  timing-safe verification, and brute-force lockout — 5 failed attempts
+  locks the account for 15 minutes (`lib/lockout.ts`, shared by both
+  login routes). Previously neither login had any lockout at all.
 - **Tasks & reminders** (`tasks` table, `routes/tasks.ts`): a job-day
   reminder is created automatically 1 day before every booking, from all
   three booking-creation paths (API, WhatsApp bot, public widget) via a
@@ -309,6 +317,30 @@ payment gateway keys you're testing against. `CHATWOOT_BASE_URL`,
 `CHATWOOT_AGENT_BOT_ID`, `META_APP_ID`, `META_EMBEDDED_SIGNUP_CONFIG_ID`, and
 `GEMINI_MODEL` are plain vars in
 `wrangler.toml`, not secrets.
+
+## Securing admin access
+
+`ADMIN_API_TOKEN` used to be the entire admin auth model — one shared
+secret, pasted into a text box in `apps/admin`, same for everyone. It's now
+**bootstrap-only**: its one remaining job is creating the first real admin
+account, after which day-to-day access is per-person (email + password,
+lockout after 5 failed attempts, individually revocable).
+
+After deploying, create the first admin account once per environment:
+
+```bash
+curl -X POST https://api.<root-domain>/admin-bootstrap/users \
+  -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Your Name", "email": "you@example.com"}'
+```
+
+This returns a `tempPassword` — log in with it at `admin.<root-domain>`
+(`POST /admin-auth/login`), and from then on you can invite further admins
+from the **Admins** page in the dashboard itself (`POST /admin/users`,
+gated by your own admin JWT) without touching `ADMIN_API_TOKEN` again.
+Keep that token itself as secret as any other credential — anyone holding
+it can mint new admin accounts.
 
 ## Deploying
 

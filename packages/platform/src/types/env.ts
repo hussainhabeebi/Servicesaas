@@ -23,7 +23,7 @@ export interface Env {
   NETWORK_INTL_API_KEY?: string;
   CF_API_TOKEN?: string; // Cloudflare for SaaS custom hostnames API
   CF_ZONE_ID?: string;
-  ADMIN_API_TOKEN: string; // bearer token guarding /admin/* internal ops routes
+  ADMIN_API_TOKEN: string; // bootstrap-only now — provisions the first admin_users account (routes/admin-bootstrap.ts), not day-to-day /admin/* access
 
   // Vars
   ENVIRONMENT: "staging" | "production";
@@ -42,5 +42,6 @@ export interface AppContext {
     tenantId: string;
     tenantUserId?: string;
     tenantRole?: "owner" | "staff" | "admin";
+    adminUserId?: string;
   };
 }

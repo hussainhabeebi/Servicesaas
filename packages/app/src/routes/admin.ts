@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { desc, eq, sql } from "drizzle-orm";
-import { createDb, schema } from "@serviceos/platform";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { createDb, schema, hashPassword, signAccessToken } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
+import { generateTempPassword } from "../lib/temp-password";
+import { clearedLockoutState } from "../lib/lockout";
 
-/** Cross-tenant ops endpoints for the internal /admin dashboard. Callers must hold the "admin" role (see index.ts wiring). */
+/** Cross-tenant ops endpoints for the internal /admin dashboard. Callers must hold a valid admin JWT (see index.ts wiring). */
 export const adminRoute = new Hono<AppContext>();
 
 adminRoute.get("/tenants", async (c) => {
@@ -82,4 +84,59 @@ adminRoute.get("/stats/platform", async (c) => {
   const [activeCount] = await db.select({ count: sql<number>`count(*)` }).from(schema.tenants).where(eq(schema.tenants.status, "active"));
   const [totalRevenue] = await db.select({ total: sql<number>`coalesce(sum(amount), 0)` }).from(schema.payments).where(eq(schema.payments.status, "success"));
   return c.json({ totalTenants: tenantCount?.count ?? 0, activeTenants: activeCount?.count ?? 0, platformRevenue: totalRevenue?.total ?? 0 });
+});
+
+async function findTenantOwner(db: ReturnType<typeof createDb>, tenantId: string) {
+  const [owner] = await db
+    .select()
+    .from(schema.tenantUsers)
+    .where(and(eq(schema.tenantUsers.tenant_id, tenantId), eq(schema.tenantUsers.role, "owner")))
+    .limit(1);
+  return owner;
+}
+
+/** Support tool: ops resets a tenant owner's password when they're locked out and can't be reached the usual way (WhatsApp down, etc). No email/SMS delivery — the temp password comes back in the response for ops to relay directly, same convention as team invites. */
+adminRoute.post("/tenants/:id/reset-password", async (c) => {
+  const tenantId = c.req.param("id");
+  const db = createDb(c.env.DB);
+  const owner = await findTenantOwner(db, tenantId);
+  if (!owner) return c.json({ error: "No owner account found for this tenant" }, 404);
+
+  const tempPassword = generateTempPassword();
+  await db
+    .update(schema.tenantUsers)
+    .set({ password_hash: await hashPassword(tempPassword), ...clearedLockoutState, updated_at: new Date().toISOString() })
+    .where(eq(schema.tenantUsers.id, owner.id));
+
+  await db.insert(schema.adminAuditLog).values({
+    id: crypto.randomUUID(),
+    admin_user_id: c.get("adminUserId")!,
+    action: "reset_tenant_password",
+    target_tenant_id: tenantId,
+    detail: `Reset password for owner account ${owner.email ?? owner.phone ?? owner.id}`,
+  });
+
+  return c.json({ tenantUserId: owner.id, email: owner.email, phone: owner.phone, tempPassword });
+});
+
+/** Support tool: ops logs in as the tenant's owner without needing their password — for debugging/support. Every use is audit-logged. */
+adminRoute.post("/tenants/:id/impersonate", async (c) => {
+  const tenantId = c.req.param("id");
+  const db = createDb(c.env.DB);
+  const [tenant] = await db.select({ subdomain: schema.tenants.subdomain }).from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
+  if (!tenant) return c.json({ error: "Tenant not found" }, 404);
+  const owner = await findTenantOwner(db, tenantId);
+  if (!owner) return c.json({ error: "No owner account found for this tenant" }, 404);
+
+  const accessToken = await signAccessToken({ sub: owner.id, tenant_id: tenantId, role: owner.role as "owner" | "staff" | "admin" }, c.env.JWT_SECRET);
+
+  await db.insert(schema.adminAuditLog).values({
+    id: crypto.randomUUID(),
+    admin_user_id: c.get("adminUserId")!,
+    action: "impersonate_tenant",
+    target_tenant_id: tenantId,
+    detail: `Logged in as owner account ${owner.email ?? owner.phone ?? owner.id}`,
+  });
+
+  return c.json({ accessToken, subdomain: tenant.subdomain });
 });

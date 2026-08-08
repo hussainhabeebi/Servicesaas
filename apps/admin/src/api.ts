@@ -1,20 +1,47 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
 
-function getToken(): string {
-  return localStorage.getItem("admin_token") ?? "";
+export function getToken(): string | null {
+  return localStorage.getItem("admin_token");
 }
-
 export function setToken(token: string) {
   localStorage.setItem("admin_token", token);
 }
+export function clearToken() {
+  localStorage.removeItem("admin_token");
+  localStorage.removeItem("admin_name");
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}/admin${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { ...options.headers, Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+    headers: { ...options.headers, Authorization: `Bearer ${getToken() ?? ""}`, "Content-Type": "application/json" },
   });
+  if (res.status === 401) {
+    clearToken();
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
+}
+
+export async function login(email: string, password: string) {
+  const res = await fetch(`${API_BASE}/admin-auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({ error: "Invalid credentials" }))).error ?? "Invalid credentials");
+  const data = (await res.json()) as { accessToken: string; admin: { id: string; name: string; email: string } };
+  setToken(data.accessToken);
+  localStorage.setItem("admin_name", data.admin.name);
+  return data;
+}
+
+/** app.{rootDomain} — derived from tenant.subdomain ({slug}.{rootDomain} by construction, not a guess), not by string-parsing VITE_API_BASE. */
+export function appBaseFromSubdomain(subdomain: string): string {
+  const rootDomain = subdomain.split(".").slice(1).join(".");
+  return `https://app.${rootDomain}`;
 }
 
 export interface Tenant {
@@ -40,12 +67,29 @@ export interface PlatformStats {
   platformRevenue: number;
 }
 
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  active: boolean;
+  last_login_at: string | null;
+  created_at: string;
+}
+
 export const api = {
-  listTenants: () => request<{ tenants: Tenant[] }>("/tenants"),
-  getTenant: (id: string) => request<TenantDetail>(`/tenants/${id}`),
+  listTenants: () => request<{ tenants: Tenant[] }>("/admin/tenants"),
+  getTenant: (id: string) => request<TenantDetail>(`/admin/tenants/${id}`),
   setTenantStatus: (id: string, status: Tenant["status"]) =>
-    request(`/tenants/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    request(`/admin/tenants/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   setTenantPlan: (id: string, plan: Tenant["plan"]) =>
-    request(`/tenants/${id}/plan`, { method: "PATCH", body: JSON.stringify({ plan }) }),
-  platformStats: () => request<PlatformStats>("/stats/platform"),
+    request(`/admin/tenants/${id}/plan`, { method: "PATCH", body: JSON.stringify({ plan }) }),
+  resetTenantPassword: (id: string) =>
+    request<{ tenantUserId: string; email: string | null; phone: string | null; tempPassword: string }>(`/admin/tenants/${id}/reset-password`, { method: "POST" }),
+  impersonateTenant: (id: string) => request<{ accessToken: string; subdomain: string }>(`/admin/tenants/${id}/impersonate`, { method: "POST" }),
+  platformStats: () => request<PlatformStats>("/admin/stats/platform"),
+
+  listAdmins: () => request<{ admins: AdminUser[] }>("/admin/users"),
+  inviteAdmin: (name: string, email: string) =>
+    request<{ id: string; tempPassword: string }>("/admin/users", { method: "POST", body: JSON.stringify({ name, email }) }),
+  deactivateAdmin: (id: string) => request(`/admin/users/${id}/deactivate`, { method: "PATCH" }),
 };

@@ -72,12 +72,53 @@ export const tenantUsers = sqliteTable(
     role: text("role").notNull().default("owner"), // owner|staff|admin
     staff_id: text("staff_id"), // links a login to the operational staff/crew record used for job assignment — nullable, owner accounts have none
     active: integer("active", { mode: "boolean" }).notNull().default(true),
+    // Brute-force lockout — see routes/auth.ts. Reset to 0/null on any
+    // successful login; locked_until blocks further attempts (even correct
+    // ones) until it passes.
+    failed_login_attempts: integer("failed_login_attempts").notNull().default(0),
+    locked_until: text("locked_until"),
     ...timestamps,
   },
   (t) => [
     index("tenant_users_tenant_idx").on(t.tenant_id),
     uniqueIndex("tenant_users_tenant_email_idx").on(t.tenant_id, t.email),
   ]
+);
+
+// ---------------------------------------------------------------------------
+// Platform admin accounts (internal ops — distinct from tenant_users, which
+// are per-tenant business logins). See routes/admin-auth.ts,
+// routes/admin-bootstrap.ts.
+// ---------------------------------------------------------------------------
+
+export const adminUsers = sqliteTable(
+  "admin_users",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    password_hash: text("password_hash").notNull(),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    failed_login_attempts: integer("failed_login_attempts").notNull().default(0),
+    locked_until: text("locked_until"),
+    last_login_at: text("last_login_at"),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("admin_users_email_idx").on(t.email)]
+);
+
+/** Sensitive-action trail for the admin panel — password resets and impersonation, specifically. */
+export const adminAuditLog = sqliteTable(
+  "admin_audit_log",
+  {
+    id: id(),
+    admin_user_id: text("admin_user_id").notNull(),
+    action: text("action").notNull(), // reset_tenant_password|impersonate_tenant
+    target_tenant_id: text("target_tenant_id"),
+    detail: text("detail"),
+    created_at: timestamps.created_at,
+  },
+  (t) => [index("admin_audit_log_admin_idx").on(t.admin_user_id), index("admin_audit_log_tenant_idx").on(t.target_tenant_id)]
 );
 
 export const refreshTokens = sqliteTable(

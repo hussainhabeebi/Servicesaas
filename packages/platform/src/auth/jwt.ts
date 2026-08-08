@@ -60,3 +60,46 @@ export async function verifyAccessToken(token: string, secret: string): Promise<
   if (payload.exp < Math.floor(Date.now() / 1000)) return null;
   return payload;
 }
+
+/**
+ * Platform admin tokens (routes/admin-auth.ts) are deliberately a distinct
+ * shape from tenant AccessTokenClaims — no tenant_id, a fixed
+ * scope: "platform_admin" marker — so a tenant-user JWT can never be
+ * mistaken for (or reused as) an admin token, and vice versa.
+ */
+export interface AdminTokenClaims {
+  sub: string; // admin_users.id
+  scope: "platform_admin";
+  exp: number;
+  iat: number;
+}
+
+export async function signAdminAccessToken(adminUserId: string, secret: string, ttlSeconds = 60 * 60 * 12): Promise<string> {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload: AdminTokenClaims = { sub: adminUserId, scope: "platform_admin", iat: now, exp: now + ttlSeconds };
+  const encHeader = b64url(JSON.stringify(header));
+  const encPayload = b64url(JSON.stringify(payload));
+  const signingInput = `${encHeader}.${encPayload}`;
+  const key = await hmacKey(secret);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signingInput));
+  return `${signingInput}.${b64url(sig)}`;
+}
+
+export async function verifyAdminAccessToken(token: string, secret: string): Promise<AdminTokenClaims | null> {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [encHeader, encPayload, encSig] = parts;
+  const key = await hmacKey(secret);
+  const valid = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    b64urlDecode(encSig!) as BufferSource,
+    new TextEncoder().encode(`${encHeader}.${encPayload}`)
+  );
+  if (!valid) return null;
+  const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(encPayload!))) as AdminTokenClaims;
+  if (payload.scope !== "platform_admin") return null;
+  if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+  return payload;
+}

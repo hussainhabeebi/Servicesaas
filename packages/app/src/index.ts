@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { AppContext } from "@serviceos/platform";
-import { tenantResolutionMiddleware, requireAuth } from "@serviceos/platform";
+import { tenantResolutionMiddleware, requireAuth, requireAdminAuth } from "@serviceos/platform";
 
 import { onboardingRoute } from "./routes/onboarding";
 import { authRoute } from "./routes/auth";
@@ -20,6 +20,8 @@ import { statsRoute } from "./routes/stats";
 import { domainsRoute } from "./routes/domains";
 import { sitesRoute } from "./routes/sites";
 import { adminRoute } from "./routes/admin";
+import { adminAuthRoute } from "./routes/admin-auth";
+import { adminUsersRoute } from "./routes/admin-users";
 import { publicRoute } from "./routes/public";
 import { tasksRoute } from "./routes/tasks";
 import { referralsRoute } from "./routes/referrals";
@@ -74,16 +76,30 @@ api.route("/billing", billingRoute);
 api.route("/team", teamRoute);
 app.route("/api", api);
 
-// --- Internal ops routes: guarded by a static admin bearer token, not tenant JWTs ---
-const admin = new Hono<AppContext>();
-admin.use("*", async (c, next) => {
+// --- Platform admin: real per-person accounts (see routes/admin-auth.ts) ---
+// Login is public (password + lockout protect it, like tenant login).
+app.route("/admin-auth", adminAuthRoute);
+
+// Bootstrap-only: creates the very first admin_users account when none
+// exist yet. Gated by the static ADMIN_API_TOKEN — its ONLY remaining job
+// now that day-to-day /admin/* access requires a real admin JWT.
+const adminBootstrap = new Hono<AppContext>();
+adminBootstrap.use("*", async (c, next) => {
   const token = (c.req.header("authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!c.env.ADMIN_API_TOKEN || token !== c.env.ADMIN_API_TOKEN) {
     return c.json({ error: "Unauthorized" }, 401);
   }
   await next();
 });
+adminBootstrap.route("/users", adminUsersRoute);
+app.route("/admin-bootstrap", adminBootstrap);
+
+// Day-to-day internal ops routes: guarded by a real admin JWT (POST
+// /admin-auth/login), not the static bootstrap token.
+const admin = new Hono<AppContext>();
+admin.use("*", requireAdminAuth());
 admin.route("/", adminRoute);
+admin.route("/users", adminUsersRoute); // logged-in admins can invite colleagues without the bootstrap token
 app.route("/admin", admin);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
