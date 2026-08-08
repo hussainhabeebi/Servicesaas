@@ -48,15 +48,24 @@ adminRoute.patch("/tenants/:id/plan", async (c) => {
   return c.json({ ok: true });
 });
 
-/** Maps a tenant's WhatsApp phone_number_id -> tenant_id in the shared WABA routing table (spec §1). */
-const waMappingSchema = z.object({ phone_number_id: z.string(), tenant_id: z.string(), waba_id: z.string().optional(), display_phone: z.string().optional() });
+/**
+ * Assigns a tenant's provisioned WhatsApp number to its Chatwoot inbox
+ * (spec §1/§5). Ops sets this up once the number is registered and
+ * configured as an inbox in Chatwoot: create the inbox, point its webhook
+ * at /webhooks/chatwoot?token=<CHATWOOT_WEBHOOK_TOKEN>, then call this with
+ * the resulting inbox_id.
+ */
+const chatwootInboxSchema = z.object({ chatwoot_inbox_id: z.number().int().positive(), whatsapp_number: z.string().min(6) });
 
-adminRoute.post("/wa-phone-mapping", async (c) => {
-  const parsed = waMappingSchema.safeParse(await c.req.json());
+adminRoute.patch("/tenants/:id/chatwoot-inbox", async (c) => {
+  const parsed = chatwootInboxSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const db = createDb(c.env.DB);
-  await db.insert(schema.waPhoneMapping).values(parsed.data);
-  return c.json({ ok: true }, 201);
+  await db
+    .update(schema.tenants)
+    .set({ chatwoot_inbox_id: parsed.data.chatwoot_inbox_id, whatsapp_number: parsed.data.whatsapp_number, updated_at: new Date().toISOString() })
+    .where(eq(schema.tenants.id, c.req.param("id")));
+  return c.json({ ok: true });
 });
 
 adminRoute.get("/stats/platform", async (c) => {

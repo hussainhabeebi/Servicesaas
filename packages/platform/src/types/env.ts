@@ -10,9 +10,8 @@ export interface Env {
 
   // Secrets
   JWT_SECRET: string;
-  WA_APP_SECRET: string; // for webhook signature verification
-  WA_VERIFY_TOKEN: string; // for webhook GET subscription handshake
-  WA_ACCESS_TOKEN: string; // Graph API token for sending messages
+  CHATWOOT_API_TOKEN: string; // platform agent token, sends on behalf of any tenant's inbox
+  CHATWOOT_WEBHOOK_TOKEN: string; // shared secret embedded in the Chatwoot webhook URL
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
   PHONEPE_MERCHANT_ID?: string;
@@ -28,6 +27,8 @@ export interface Env {
   // Vars
   ENVIRONMENT: "staging" | "production";
   ROOT_DOMAIN: string; // e.g. "yourapp.com" — subdomains are {slug}.yourapp.com
+  CHATWOOT_BASE_URL: string; // e.g. "https://app.aiingo.com" — no trailing slash
+  CHATWOOT_ACCOUNT_ID: string;
 }
 
 export interface AppContext {

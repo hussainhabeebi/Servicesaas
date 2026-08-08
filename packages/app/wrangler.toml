@@ -17,7 +17,7 @@ binding = "AI"
 # --- Staging -----------------------------------------------------------
 [env.staging]
 name = "serviceos-app-staging"
-vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "stg.servbazaar.com" }
+vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "stg.servbazaar.com", CHATWOOT_BASE_URL = "https://app.aiingo.com", CHATWOOT_ACCOUNT_ID = "REPLACE_WITH_CHATWOOT_ACCOUNT_ID" }
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -43,7 +43,7 @@ crons = ["0 20 * * *"]
 # --- Production ----------------------------------------------------------
 [env.production]
 name = "serviceos-app-production"
-vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com" }
+vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com", CHATWOOT_BASE_URL = "https://app.aiingo.com", CHATWOOT_ACCOUNT_ID = "REPLACE_WITH_CHATWOOT_ACCOUNT_ID" }
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -65,7 +65,7 @@ binding = "AI"
 [env.production.triggers]
 crons = ["0 20 * * *"]
 
-# Secrets (JWT_SECRET, WA_APP_SECRET, WA_VERIFY_TOKEN, WA_ACCESS_TOKEN,
-# RAZORPAY_*, PHONEPE_*, TELR_*, NETWORK_INTL_*, CF_API_TOKEN, CF_ZONE_ID)
-# are set per-environment via `wrangler secret put <NAME> --env <staging|production>`,
-# never committed here.
+# Secrets (JWT_SECRET, CHATWOOT_API_TOKEN, CHATWOOT_WEBHOOK_TOKEN,
+# RAZORPAY_*, PHONEPE_*, TELR_*, NETWORK_INTL_*, CF_API_TOKEN, CF_ZONE_ID,
+# ADMIN_API_TOKEN) are set per-environment via
+# `wrangler secret put <NAME> --env <staging|production>`, never committed here.

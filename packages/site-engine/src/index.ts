@@ -34,15 +34,13 @@ app.get("*", async (c) => {
     .from(schema.services)
     .where(eq(schema.services.tenant_id, tenantId));
 
-  const [waMapping] = await db.select({ display_phone: schema.waPhoneMapping.display_phone }).from(schema.waPhoneMapping).where(eq(schema.waPhoneMapping.tenant_id, tenantId)).limit(1);
-
   const html = renderSitePage({
     templateKey: site.template_key,
     content,
     sectionsEnabled: site.sections_enabled ?? [],
     services,
     currency: tenant.currency,
-    waLink: waMapping?.display_phone ? `https://wa.me/${waMapping.display_phone.replace(/\D/g, "")}` : undefined,
+    waLink: tenant.whatsapp_number ? `https://wa.me/${tenant.whatsapp_number.replace(/\D/g, "")}` : undefined,
     isDraftPreview: isPreview,
   });
 

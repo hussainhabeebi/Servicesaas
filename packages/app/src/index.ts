@@ -13,7 +13,7 @@ import { invoicesRoute } from "./routes/invoices";
 import { paymentsRoute } from "./routes/payments";
 import { paymentsWebhookRoute } from "./routes/payments-webhook";
 import { leadsRoute } from "./routes/leads";
-import { whatsappWebhookRoute } from "./routes/whatsapp-webhook";
+import { chatwootWebhookRoute } from "./routes/chatwoot-webhook";
 import { reviewsRoute } from "./routes/reviews";
 import { statsRoute } from "./routes/stats";
 import { domainsRoute } from "./routes/domains";
@@ -31,7 +31,7 @@ app.get("/health", (c) => c.json({ ok: true, service: "serviceos-app", environme
 // --- Platform-level routes: no resolved tenant host, no auth yet -----------
 app.route("/onboarding", onboardingRoute);
 app.route("/auth", authRoute);
-app.route("/webhooks/whatsapp", whatsappWebhookRoute);
+app.route("/webhooks/chatwoot", chatwootWebhookRoute);
 app.route("/webhooks/payments", paymentsWebhookRoute);
 
 // --- Public storefront routes: tenant resolved from Host, no login ---------

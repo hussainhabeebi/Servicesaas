@@ -28,9 +28,17 @@ export const tenants = sqliteTable(
     custom_domain: text("custom_domain"),
     bot_persona_name: text("bot_persona_name"), // e.g. "Aisha" — persona-based bot naming
     address: text("address"),
+    // WhatsApp is provisioned per tenant (a dedicated number set up as its own
+    // Chatwoot inbox), assigned by ops after signup — see admin.ts.
+    whatsapp_number: text("whatsapp_number"), // E.164, for the public wa.me click-to-chat link
+    chatwoot_inbox_id: integer("chatwoot_inbox_id"),
     ...timestamps,
   },
-  (t) => [uniqueIndex("tenants_slug_idx").on(t.slug), uniqueIndex("tenants_subdomain_idx").on(t.subdomain)]
+  (t) => [
+    uniqueIndex("tenants_slug_idx").on(t.slug),
+    uniqueIndex("tenants_subdomain_idx").on(t.subdomain),
+    uniqueIndex("tenants_chatwoot_inbox_idx").on(t.chatwoot_inbox_id),
+  ]
 );
 
 export const tenantUsers = sqliteTable(
@@ -300,16 +308,8 @@ export const leads = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
-// WhatsApp
+// WhatsApp (transported via Chatwoot — see platform/src/whatsapp/chatwoot.ts)
 // ---------------------------------------------------------------------------
-
-export const waPhoneMapping = sqliteTable("wa_phone_mapping", {
-  phone_number_id: text("phone_number_id").primaryKey(),
-  tenant_id: text("tenant_id").notNull(),
-  waba_id: text("waba_id"),
-  display_phone: text("display_phone"),
-  created_at: timestamps.created_at,
-});
 
 export const whatsappConversations = sqliteTable(
   "whatsapp_conversations",
@@ -318,6 +318,7 @@ export const whatsappConversations = sqliteTable(
     tenant_id: text("tenant_id").notNull(),
     customer_phone: text("customer_phone").notNull(),
     contact_id: text("contact_id"), // nullable ref -> customers.id
+    chatwoot_conversation_id: integer("chatwoot_conversation_id"), // conversation on the tenant's Chatwoot inbox
     last_message_at: text("last_message_at"),
     unread_count: integer("unread_count").notNull().default(0),
     created_at: timestamps.created_at,

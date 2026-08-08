@@ -3,8 +3,10 @@
 Multi-tenant booking + billing + website + WhatsApp SaaS for local service
 businesses (cleaning, salons, repair techs, tutors, pet groomers, spa,
 laundry, fitness trainers). Sister product to Leadvyne, sharing platform
-infrastructure (Cloudflare Workers/D1/R2, the WhatsApp BSP, payment gateway
-wrappers, tenant-auth).
+infrastructure (Cloudflare Workers/D1/R2, payment gateway wrappers,
+tenant-auth). WhatsApp is transported through a self-hosted Chatwoot
+instance (`app.aiingo.com`) rather than talking to Meta's Graph API
+directly — see the WhatsApp section below.
 
 Full product spec: see the feature spec this repo was built from (booking
 system, billing/VAT, WhatsApp bot, CRM, domains, website builder, Google
@@ -15,7 +17,7 @@ Ads support, and the innovative/differentiator features).
 ```
 packages/
   platform/     shared library: D1 schema (Drizzle), tenant resolution,
-                auth (JWT + password hashing), WhatsApp router, payment
+                auth (JWT + password hashing), Chatwoot integration, payment
                 gateway wrappers (Razorpay/PhonePe/Telr/Network International)
   app/          booking/billing/CRM/WhatsApp Worker API (Hono) — the main
                 deployed Worker, plus the BookingCalendarDO Durable Object
@@ -31,18 +33,25 @@ itself — it has no `wrangler.toml`.
 
 ## What's implemented
 
-- **D1 schema** (`packages/app/migrations/0001_init.sql`, mirrored as a
+- **D1 schema** (`packages/app/migrations/*.sql`, mirrored as a
   Drizzle schema in `packages/platform/src/db/schema.ts`): every table from
   the spec's suggested list, plus the supporting tables auth/billing/CRM
   need (tenant_users, refresh_tokens, customer_addresses, staff_availability,
-  invoice_line_items, expenses, wa_phone_mapping, site_versions,
-  broadcast_campaigns, social_posts).
+  invoice_line_items, expenses, site_versions, broadcast_campaigns,
+  social_posts).
 - **Tenant resolution + auth** (`packages/platform/src/tenant`,
   `.../auth`): subdomain/custom-domain -> tenant_id middleware, HS256 JWT
   (Web Crypto, no Node-only deps), PBKDF2 password hashing.
-- **WhatsApp router** (`packages/platform/src/whatsapp`): shared
-  `phone_number_id -> tenant_id` routing table (same shared WABA as
-  Leadvyne), webhook signature verification, Graph API send helper.
+- **Chatwoot integration** (`packages/platform/src/whatsapp/chatwoot.ts`):
+  each tenant gets a dedicated WhatsApp number (provisioned by ops) set up
+  as its own inbox on a shared, self-hosted Chatwoot instance. Inbound
+  messages arrive via a single Chatwoot webhook
+  (`/webhooks/chatwoot`), routed to the right tenant by
+  `chatwoot_inbox_id` on the tenant row; outbound replies and proactive
+  sends (invoices, review requests) go through Chatwoot's REST API using
+  one platform-level agent token. Chatwoot doesn't sign its webhook
+  payloads, so a shared secret is embedded in the webhook URL instead
+  (`?token=<CHATWOOT_WEBHOOK_TOKEN>`).
 - **Payment gateway wrappers**: Razorpay, PhonePe, Telr, Network
   International — each implements a common `PaymentGateway` interface
   (`createPaymentLink` / `verifyCallback`).
@@ -118,9 +127,10 @@ pnpm --filter @serviceos/admin dev          # admin dashboard on :4173
 
 Each Worker needs its secrets set locally (`wrangler secret put <NAME>` or
 a `.dev.vars` file — see `packages/platform/src/types/env.ts` for the full
-list): `JWT_SECRET`, `WA_APP_SECRET`, `WA_VERIFY_TOKEN`, `WA_ACCESS_TOKEN`,
+list): `JWT_SECRET`, `CHATWOOT_API_TOKEN`, `CHATWOOT_WEBHOOK_TOKEN`,
 `ADMIN_API_TOKEN`, plus whichever payment gateway keys you're testing
-against.
+against. `CHATWOOT_BASE_URL` and `CHATWOOT_ACCOUNT_ID` are plain vars in
+`wrangler.toml`, not secrets.
 
 ## Deploying
 
@@ -136,6 +146,11 @@ against.
    Dockerfile location) for its own build/deploy/preview pipeline, separate
    from the Workers pipeline above. Set the `VITE_API_BASE` build arg to
    your deployed app Worker's URL (e.g. `https://api.servbazaar.com`).
+6. For each tenant's WhatsApp: provision their number, create a
+   corresponding inbox in the shared Chatwoot instance, point that inbox's
+   webhook at `https://api.servbazaar.com/webhooks/chatwoot?token=<CHATWOOT_WEBHOOK_TOKEN>`,
+   then call `PATCH /admin/tenants/:id/chatwoot-inbox` with the inbox ID and
+   the number (E.164) to wire it to that tenant.
 
 ## Design notes worth knowing before extending this
 

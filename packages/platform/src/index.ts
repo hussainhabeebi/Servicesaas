@@ -5,7 +5,7 @@ export * from "./tenant/resolve";
 export * from "./auth/password";
 export * from "./auth/jwt";
 export * from "./auth/middleware";
-export * from "./whatsapp/router";
+export * from "./whatsapp/chatwoot";
 export * from "./payments/types";
 export * from "./payments/razorpay";
 export * from "./payments/phonepe";
