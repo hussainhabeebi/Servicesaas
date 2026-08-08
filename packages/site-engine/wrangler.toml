@@ -23,7 +23,7 @@ vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com" }
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "serviceos-production"
-database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
+database_id = "01882e3d-806f-4fe2-a163-9dcee6fd0297"
 
 [[env.production.r2_buckets]]
 binding = "FILES"
