@@ -36,6 +36,15 @@ export const tenants = sqliteTable(
     whatsapp_number: text("whatsapp_number"), // E.164, for the public wa.me click-to-chat link
     chatwoot_account_id: integer("chatwoot_account_id"),
     chatwoot_inbox_id: integer("chatwoot_inbox_id"),
+    // Self-serve billing (spec: "manage your own subscription") — tracks
+    // the platform subscription itself, separate from the payment gateway
+    // wrappers in payments/*, which are for the TENANT's own customers
+    // paying THEM. No recurring-charge automation is wired up yet (none of
+    // Razorpay/PhonePe/Telr/Network International's wrappers here support
+    // subscription billing, only one-off payment links) — this is state
+    // tracking + a plan-change UI, not automated dunning/collection.
+    subscription_status: text("subscription_status").notNull().default("active"), // active|past_due|cancelled
+    next_billing_date: text("next_billing_date"),
     ...timestamps,
   },
   (t) => [
@@ -55,6 +64,7 @@ export const tenantUsers = sqliteTable(
     phone: text("phone"),
     password_hash: text("password_hash").notNull(),
     role: text("role").notNull().default("owner"), // owner|staff|admin
+    staff_id: text("staff_id"), // links a login to the operational staff/crew record used for job assignment — nullable, owner accounts have none
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     ...timestamps,
   },
@@ -507,4 +517,88 @@ export const dailyStats = sqliteTable(
     created_at: timestamps.created_at,
   },
   (t) => [uniqueIndex("daily_stats_tenant_date_idx").on(t.tenant_id, t.stat_date)]
+);
+
+// ---------------------------------------------------------------------------
+// Tasks & reminders
+// ---------------------------------------------------------------------------
+
+export const tasks = sqliteTable(
+  "tasks",
+  {
+    id: id(),
+    tenant_id: text("tenant_id").notNull(),
+    booking_id: text("booking_id"), // nullable — general tasks aren't tied to a job
+    assigned_staff_id: text("assigned_staff_id"),
+    title: text("title").notNull(),
+    description: text("description"),
+    type: text("type").notNull().default("general"), // job_reminder|follow_up|general
+    due_at: text("due_at"),
+    status: text("status").notNull().default("pending"), // pending|done
+    created_at: timestamps.created_at,
+  },
+  (t) => [index("tasks_tenant_idx").on(t.tenant_id), index("tasks_tenant_status_idx").on(t.tenant_id, t.status)]
+);
+
+// ---------------------------------------------------------------------------
+// Referrals
+// ---------------------------------------------------------------------------
+
+export const referrals = sqliteTable(
+  "referrals",
+  {
+    id: id(),
+    tenant_id: text("tenant_id").notNull(),
+    referring_customer_id: text("referring_customer_id").notNull(),
+    referred_name: text("referred_name"),
+    referred_phone: text("referred_phone"),
+    referred_customer_id: text("referred_customer_id"), // set once the referral actually books
+    reward_status: text("reward_status").notNull().default("pending"), // pending|granted
+    reward_description: text("reward_description"),
+    created_at: timestamps.created_at,
+  },
+  (t) => [index("referrals_tenant_idx").on(t.tenant_id)]
+);
+
+// ---------------------------------------------------------------------------
+// Accounting: vendor bills (accounts payable — separate from the per-job
+// `expenses` table, which tracks job-level material/wage cost)
+// ---------------------------------------------------------------------------
+
+export const vendorBills = sqliteTable(
+  "vendor_bills",
+  {
+    id: id(),
+    tenant_id: text("tenant_id").notNull(),
+    vendor_name: text("vendor_name").notNull(),
+    description: text("description"),
+    amount: real("amount").notNull(),
+    due_date: text("due_date"),
+    status: text("status").notNull().default("unpaid"), // unpaid|paid
+    paid_at: text("paid_at"),
+    created_at: timestamps.created_at,
+  },
+  (t) => [index("vendor_bills_tenant_idx").on(t.tenant_id)]
+);
+
+// ---------------------------------------------------------------------------
+// Calendar sync (Google Calendar / Cal.com) — per staff member. OAuth
+// exchange itself needs real provider app credentials this environment
+// can't provision; see routes/calendar-sync.ts for what's stubbed.
+// ---------------------------------------------------------------------------
+
+export const calendarConnections = sqliteTable(
+  "calendar_connections",
+  {
+    id: id(),
+    tenant_id: text("tenant_id").notNull(),
+    staff_id: text("staff_id").notNull(),
+    provider: text("provider").notNull(), // google|cal_com
+    access_token: text("access_token"),
+    refresh_token: text("refresh_token"),
+    external_calendar_id: text("external_calendar_id"),
+    connected_at: text("connected_at"),
+    created_at: timestamps.created_at,
+  },
+  (t) => [index("calendar_connections_tenant_idx").on(t.tenant_id), uniqueIndex("calendar_connections_staff_provider_idx").on(t.staff_id, t.provider)]
 );

@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { createDb, schema } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { reserveSlot } from "../lib/booking-lock";
+import { createJobReminderTask } from "../lib/tasks";
 
 /**
  * Unauthenticated storefront endpoints for the tenant's website booking
@@ -84,6 +85,7 @@ publicRoute.post("/bookings", async (c) => {
     scheduled_end: end,
     source: "website",
   });
+  await createJobReminderTask(db, tenantId, bookingId, undefined, start);
 
   return c.json({ id: bookingId, scheduled_start: start, scheduled_end: end }, 201);
 });

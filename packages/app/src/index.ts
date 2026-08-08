@@ -21,6 +21,14 @@ import { domainsRoute } from "./routes/domains";
 import { sitesRoute } from "./routes/sites";
 import { adminRoute } from "./routes/admin";
 import { publicRoute } from "./routes/public";
+import { tasksRoute } from "./routes/tasks";
+import { referralsRoute } from "./routes/referrals";
+import { vendorBillsRoute } from "./routes/vendor-bills";
+import { reportsRoute } from "./routes/reports";
+import { broadcastRoute } from "./routes/broadcast";
+import { calendarSyncRoute } from "./routes/calendar-sync";
+import { billingRoute } from "./routes/billing";
+import { teamRoute } from "./routes/team";
 import { BookingCalendarDO } from "./durable-objects/booking-calendar";
 
 const app = new Hono<AppContext>();
@@ -56,6 +64,14 @@ api.route("/stats", statsRoute);
 api.route("/domains", domainsRoute);
 api.route("/sites", sitesRoute);
 api.route("/whatsapp", whatsappConnectRoute);
+api.route("/tasks", tasksRoute);
+api.route("/referrals", referralsRoute);
+api.route("/vendor-bills", vendorBillsRoute);
+api.route("/reports", reportsRoute);
+api.route("/broadcasts", broadcastRoute);
+api.route("/calendar-sync", calendarSyncRoute);
+api.route("/billing", billingRoute);
+api.route("/team", teamRoute);
 app.route("/api", api);
 
 // --- Internal ops routes: guarded by a static admin bearer token, not tenant JWTs ---
@@ -74,15 +90,17 @@ app.notFound((c) => c.json({ error: "Not found" }, 404));
 
 export default {
   fetch: app.fetch,
-  /** Runs off the wrangler.toml cron trigger (see README) to roll each active tenant's day into daily_stats. */
+  /** Runs off the wrangler.toml cron trigger (see README): daily_stats rollup + win-back/rebooking nudges for each active tenant. */
   async scheduled(_event: ScheduledEvent, env: AppContext["Bindings"]): Promise<void> {
     const { createDb, schema } = await import("@serviceos/platform");
     const { eq } = await import("drizzle-orm");
     const { rollupDailyStatsForTenant } = await import("./lib/rollup");
+    const { runFollowUpsForTenant } = await import("./lib/followups");
     const db = createDb(env.DB);
     const tenants = await db.select({ id: schema.tenants.id }).from(schema.tenants).where(eq(schema.tenants.status, "active"));
     for (const tenant of tenants) {
       await rollupDailyStatsForTenant(env, tenant.id).catch((err) => console.error(`rollup failed for tenant ${tenant.id}`, err));
+      await runFollowUpsForTenant(env, tenant.id).catch((err) => console.error(`follow-ups failed for tenant ${tenant.id}`, err));
     }
   },
 };

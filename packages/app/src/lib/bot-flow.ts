@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { createDb, schema, type Env } from "@serviceos/platform";
 import { reserveSlot } from "./booking-lock";
 import { geminiExtractBookingIntent } from "./gemini";
+import { createJobReminderTask } from "./tasks";
 
 /**
  * Enquiry bot (spec §5): greets, asks service type/area/date, captures the
@@ -137,6 +138,7 @@ export async function processInboundText(
       scheduled_end: end,
       source: "whatsapp",
     });
+    await createJobReminderTask(db, tenantId, bookingId, undefined, start);
 
     await db.update(schema.leads).set({ status: "booked", converted_booking_id: bookingId, updated_at: new Date().toISOString() }).where(eq(schema.leads.id, lead.id));
 

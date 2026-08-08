@@ -5,6 +5,7 @@ import { createDb, schema } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { bookingCalendarId } from "../durable-objects/booking-calendar";
 import { reserveSlot } from "../lib/booking-lock";
+import { createJobReminderTask } from "../lib/tasks";
 
 export const bookingsRoute = new Hono<AppContext>();
 
@@ -85,6 +86,8 @@ bookingsRoute.post("/", async (c) => {
       source: input.source,
       notes: input.notes,
     });
+
+    await createJobReminderTask(db, tenantId, bookingId, input.staff_id, start);
 
     created.push({ id: bookingId, scheduled_start: start, scheduled_end: end });
     if (i === 0) parentId = bookingId;

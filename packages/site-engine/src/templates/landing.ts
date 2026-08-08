@@ -460,6 +460,7 @@ ${jsonLd(rootDomain)}
 
 <script>
   var API_BASE = ${JSON.stringify(apiBaseUrl)};
+  var APP_BASE = ${JSON.stringify(`https://app.${rootDomain}`)};
 
   // Scroll-reveal animations (sections + step cards individually)
   var revealEls = document.querySelectorAll('.reveal, .step');
@@ -536,9 +537,9 @@ ${jsonLd(rootDomain)}
           return;
         }
         resultEl.className = 'modal-result success';
-        resultEl.textContent = 'Logged in! Redirecting to your site…';
+        resultEl.textContent = 'Logged in! Redirecting to your dashboard…';
         setTimeout(function () {
-          window.location.href = 'https://' + result.data.tenant.subdomain;
+          window.location.href = APP_BASE + '/?token=' + encodeURIComponent(result.data.accessToken);
         }, 900);
       })
       .catch(function () {
@@ -587,9 +588,12 @@ ${jsonLd(rootDomain)}
           return;
         }
         resultEl.className = 'success';
-        resultEl.textContent = "You're all set! Your site is live at " + result.data.tenant.subdomain + ". Check your email/WhatsApp for login details.";
+        resultEl.textContent = "You're all set! Your site is live at " + result.data.tenant.subdomain + ". Taking you to your dashboard…";
         form.reset();
         submitBtn.textContent = 'Account created';
+        setTimeout(function () {
+          window.location.href = APP_BASE + '/?token=' + encodeURIComponent(result.data.accessToken);
+        }, 1400);
       })
       .catch(function () {
         resultEl.className = 'error';
