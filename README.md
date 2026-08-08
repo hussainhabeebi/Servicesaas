@@ -135,7 +135,7 @@ against.
    `Dockerfile` — point Coolify at this repo (Docker-based app, default
    Dockerfile location) for its own build/deploy/preview pipeline, separate
    from the Workers pipeline above. Set the `VITE_API_BASE` build arg to
-   your deployed app Worker's URL (e.g. `https://api.serviceos.app`).
+   your deployed app Worker's URL (e.g. `https://api.servbazaar.com`).
 
 ## Design notes worth knowing before extending this
 

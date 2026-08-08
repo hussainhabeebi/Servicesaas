@@ -17,7 +17,7 @@ binding = "AI"
 # --- Staging -----------------------------------------------------------
 [env.staging]
 name = "serviceos-app-staging"
-vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "staging.serviceos.app" }
+vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "stg.servbazaar.com" }
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -43,7 +43,7 @@ crons = ["0 20 * * *"]
 # --- Production ----------------------------------------------------------
 [env.production]
 name = "serviceos-app-production"
-vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "serviceos.app" }
+vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com" }
 
 [[env.production.d1_databases]]
 binding = "DB"

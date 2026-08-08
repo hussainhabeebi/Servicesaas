@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [env.staging]
 name = "serviceos-site-engine-staging"
-vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "staging.serviceos.app" }
+vars = { ENVIRONMENT = "staging", ROOT_DOMAIN = "stg.servbazaar.com" }
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -18,7 +18,7 @@ bucket_name = "serviceos-staging-files"
 
 [env.production]
 name = "serviceos-site-engine-production"
-vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "serviceos.app" }
+vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com" }
 
 [[env.production.d1_databases]]
 binding = "DB"

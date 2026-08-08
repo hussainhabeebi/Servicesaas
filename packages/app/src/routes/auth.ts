@@ -6,7 +6,7 @@ import type { AppContext } from "@serviceos/platform";
 
 /**
  * Global login (not bound to a resolved tenant host) — an owner/staff
- * member may log in from the marketing site or app.serviceos.app before
+ * member may log in from the marketing site or api.servbazaar.com before
  * we know which tenant they belong to, so we look their account up by
  * email/phone directly.
  */

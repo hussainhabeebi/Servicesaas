@@ -42,8 +42,10 @@ async function cfGetCustomHostname(env: AppContext["Bindings"], cfHostnameId: st
   return json.result;
 }
 
-function toDnsRecords(cf: CfCustomHostname, hostname: string) {
-  const records: Array<{ type: string; name: string; value: string }> = [{ type: "CNAME", name: hostname, value: "hosted.serviceos.app" }];
+function toDnsRecords(cf: CfCustomHostname, hostname: string, rootDomain: string) {
+  // The fallback-origin hostname configured in Cloudflare for SaaS (Custom Hostname Fallback origin)
+  // must itself be a proxied hostname on our own zone, routed to site-engine.
+  const records: Array<{ type: string; name: string; value: string }> = [{ type: "CNAME", name: hostname, value: `hosted.${rootDomain}` }];
   if (cf.ownership_verification) {
     records.push({ type: "TXT", name: cf.ownership_verification.name, value: cf.ownership_verification.value });
   }
@@ -78,12 +80,12 @@ domainsRoute.post("/", async (c) => {
     status: cf ? "verifying" : "error",
     cf_hostname_id: cf?.id,
     ssl_status: cf?.ssl.status,
-    dns_records: cf ? toDnsRecords(cf, parsed.data.domain) : undefined,
+    dns_records: cf ? toDnsRecords(cf, parsed.data.domain, c.env.ROOT_DOMAIN) : undefined,
     error_message: cf ? undefined : "Could not register domain with Cloudflare — check CF_API_TOKEN/CF_ZONE_ID config",
     last_checked_at: new Date().toISOString(),
   });
 
-  return c.json({ id, status: cf ? "verifying" : "error", dnsRecords: cf ? toDnsRecords(cf, parsed.data.domain) : [] }, 201);
+  return c.json({ id, status: cf ? "verifying" : "error", dnsRecords: cf ? toDnsRecords(cf, parsed.data.domain, c.env.ROOT_DOMAIN) : [] }, 201);
 });
 
 /** Scheduled domain health check (spec §7) — also callable on-demand from the tenant's domain status page. */
@@ -103,7 +105,7 @@ domainsRoute.post("/:id/check", async (c) => {
   const status = cf.status === "active" && cf.ssl.status === "active" ? "active" : cf.status === "active" ? "verifying" : "verifying";
   await db
     .update(schema.domains)
-    .set({ status, ssl_status: cf.ssl.status, dns_records: toDnsRecords(cf, domain.domain), last_checked_at: new Date().toISOString(), error_message: undefined })
+    .set({ status, ssl_status: cf.ssl.status, dns_records: toDnsRecords(cf, domain.domain, c.env.ROOT_DOMAIN), last_checked_at: new Date().toISOString(), error_message: undefined })
     .where(eq(schema.domains.id, domain.id));
 
   return c.json({ status, sslStatus: cf.ssl.status });
