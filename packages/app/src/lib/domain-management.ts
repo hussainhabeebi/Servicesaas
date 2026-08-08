@@ -8,6 +8,22 @@ import { createDb, schema, type Env } from "@serviceos/platform";
  * with a different source for tenantId (JWT vs a route param).
  */
 
+const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+/**
+ * Cloudflare's custom_hostnames API wants a bare hostname — people paste
+ * full URLs ("https://www.example.com/") more often than not, so strip
+ * scheme/path/trailing dot before validating rather than rejecting those
+ * outright.
+ */
+export function normalizeHostname(input: string): string | null {
+  let h = input.trim().toLowerCase();
+  h = h.replace(/^[a-z][a-z0-9+.-]*:\/\//, ""); // strip scheme
+  h = h.split(/[/?#]/)[0] ?? ""; // strip path/query/fragment
+  h = h.replace(/\.$/, ""); // strip trailing dot
+  return HOSTNAME_RE.test(h) ? h : null;
+}
+
 interface CfCustomHostname {
   id: string;
   status: string; // pending | active | ...
@@ -55,7 +71,12 @@ export async function listDomains(db: ReturnType<typeof createDb>, tenantId: str
   return db.select().from(schema.domains).where(eq(schema.domains.tenant_id, tenantId));
 }
 
-export async function addDomain(env: Env, tenantId: string, domain: string) {
+export async function addDomain(env: Env, tenantId: string, rawDomain: string) {
+  const domain = normalizeHostname(rawDomain);
+  if (!domain) {
+    return { error: "Not a valid domain — enter just the hostname, e.g. yourbusiness.com (no https:// or trailing slash)" as const };
+  }
+
   const db = createDb(env.DB);
   const cf = await cfCreateCustomHostname(env, domain);
   const id = crypto.randomUUID();

@@ -214,6 +214,7 @@ adminRoute.post("/tenants/:id/domains", async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const tenantId = c.req.param("id");
   const result = await addDomain(c.env, tenantId, parsed.data.domain);
+  if ("error" in result) return c.json(result, 400);
 
   await createDb(c.env.DB)
     .insert(schema.adminAuditLog)

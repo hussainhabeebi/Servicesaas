@@ -17,6 +17,7 @@ domainsRoute.post("/", async (c) => {
   const parsed = addSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const result = await addDomain(c.env, c.get("tenantId"), parsed.data.domain);
+  if ("error" in result) return c.json(result, 400);
   return c.json(result, 201);
 });
 
