@@ -7,15 +7,15 @@
  * Testimonials are deliberately left as clearly-marked placeholders, not
  * fabricated quotes — swap in real ones once there are real customers.
  */
-const VERTICAL_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "cleaning", label: "Cleaning" },
-  { value: "salon", label: "Salon" },
-  { value: "repair", label: "Repair & Trades" },
-  { value: "tutoring", label: "Tutoring" },
-  { value: "pet_care", label: "Pet Care" },
-  { value: "fitness", label: "Fitness" },
-  { value: "spa_laundry", label: "Spa & Laundry" },
-  { value: "generic", label: "Other Service Business" },
+const VERTICAL_OPTIONS: Array<{ value: string; label: string; emoji: string; anim: string }> = [
+  { value: "cleaning", label: "Cleaning", emoji: "🧹", anim: "sweep" },
+  { value: "salon", label: "Salon", emoji: "💇", anim: "snip" },
+  { value: "repair", label: "Repair & Trades", emoji: "🔧", anim: "wrench" },
+  { value: "tutoring", label: "Tutoring", emoji: "📚", anim: "flip" },
+  { value: "pet_care", label: "Pet Care", emoji: "🐾", anim: "hop" },
+  { value: "fitness", label: "Fitness", emoji: "🏋️", anim: "pulse" },
+  { value: "spa_laundry", label: "Spa & Laundry", emoji: "🧺", anim: "float" },
+  { value: "generic", label: "Other Service Business", emoji: "✨", anim: "pulse" },
 ];
 
 export function renderLandingPage(apiBaseUrl: string, rootDomain: string): string {
@@ -67,13 +67,33 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
   .feature { border: 1px solid #e5e7eb; border-radius: 14px; padding: 1.6rem; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
   .feature:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(79,70,229,0.12); border-color: var(--accent); }
-  .feature .emoji { font-size: 1.6rem; margin-bottom: 0.5rem; }
+  .feature .emoji { font-size: 1.6rem; margin-bottom: 0.5rem; display: inline-block; animation: bob 3.2s ease-in-out infinite; }
+  .feature:nth-child(2) .emoji { animation-delay: 0.4s; }
+  .feature:nth-child(3) .emoji { animation-delay: 0.8s; }
+  .feature:nth-child(4) .emoji { animation-delay: 1.2s; }
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(-4deg); } }
   .feature h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
   .feature p { margin: 0; color: var(--muted); font-size: 0.92rem; }
 
-  .verticals { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
-  .chip { background: #f3f4f6; border-radius: 999px; padding: 0.5rem 1.1rem; font-size: 0.9rem; color: var(--ink); transition: background 0.2s, transform 0.2s; }
-  .chip:hover { background: #eef2ff; transform: translateY(-2px); }
+  .verticals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
+  .vcard { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.5rem 1rem; text-align: center; transition: transform 0.25s, box-shadow 0.25s, background 0.25s; cursor: default; }
+  .vcard:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 14px 30px rgba(79,70,229,0.15); background: #eef2ff; }
+  .vcard .vemoji { font-size: 2.2rem; display: inline-block; margin-bottom: 0.6rem; }
+  .vcard .vlabel { font-size: 0.88rem; font-weight: 600; color: var(--ink); }
+  .vcard:hover .vemoji.sweep { animation: sweep 0.6s ease-in-out infinite; }
+  .vcard:hover .vemoji.snip { animation: snip 0.5s ease-in-out infinite; }
+  .vcard:hover .vemoji.wrench { animation: wrench 0.6s ease-in-out infinite; }
+  .vcard:hover .vemoji.flip { animation: flip 0.7s ease-in-out infinite; }
+  .vcard:hover .vemoji.hop { animation: hop 0.5s ease-in-out infinite; }
+  .vcard:hover .vemoji.pulse { animation: vpulse 0.6s ease-in-out infinite; }
+  .vcard:hover .vemoji.float { animation: vfloat 1.4s ease-in-out infinite; }
+  @keyframes sweep { 0%, 100% { transform: rotate(0deg) translateX(0); } 50% { transform: rotate(-18deg) translateX(-4px); } }
+  @keyframes snip { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(22deg); } }
+  @keyframes wrench { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
+  @keyframes flip { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(180deg); } }
+  @keyframes hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes vpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
+  @keyframes vfloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-8px) rotate(6deg); } }
 
   .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
   .plan { border: 2px solid #e5e7eb; border-radius: 18px; padding: 2rem; transition: transform 0.25s, box-shadow 0.25s; }
@@ -164,9 +184,10 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
 
   <section id="verticals" class="reveal">
     <h2>Built for your kind of business</h2>
+    <p class="subhead">Hover a card and see it come to life.</p>
     <div class="verticals">
       ${VERTICAL_OPTIONS.filter((v) => v.value !== "generic")
-        .map((v) => `<span class="chip">${v.label}</span>`)
+        .map((v) => `<div class="vcard"><div class="vemoji ${v.anim}">${v.emoji}</div><div class="vlabel">${v.label}</div></div>`)
         .join("")}
     </div>
   </section>
