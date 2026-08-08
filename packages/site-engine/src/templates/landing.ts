@@ -18,14 +18,84 @@ const VERTICAL_OPTIONS: Array<{ value: string; label: string; emoji: string; ani
   { value: "generic", label: "Other Service Business", emoji: "✨", anim: "pulse" },
 ];
 
+const FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "What is ServBazaar?",
+    a: "ServBazaar is booking, billing, a website, and a WhatsApp bot for local service businesses — cleaning, salons, repair techs, tutors, pet groomers, fitness trainers, and spa & laundry — all in one place instead of five separate tools.",
+  },
+  {
+    q: "How much does ServBazaar cost?",
+    a: "Starter is AED 99/month (solo booking calendar, WhatsApp bot, basic invoicing, a website on your ServBazaar subdomain). Growth is AED 199/month and adds multi-staff scheduling, full VAT invoicing, a custom domain, full CRM, and Google Ads support. No setup fees, cancel anytime.",
+  },
+  {
+    q: "Do I need my own WhatsApp Business number?",
+    a: "Yes — you connect your own WhatsApp number during setup. Bookings, quotes, and reminders then run through that number, so it stays recognizably your business to your customers.",
+  },
+  {
+    q: "Can I use my own domain name?",
+    a: "Every business gets a free subdomain immediately on signup. On the Growth plan you can connect your own domain (e.g. yourbusiness.com) with automatic SSL.",
+  },
+  {
+    q: "Is UAE VAT calculated automatically?",
+    a: "Yes — invoices calculate 5% UAE VAT automatically, with support for multi-line items, partial payments, and automatic overdue reminders on the Growth plan.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. Subscriptions are billed monthly with no lock-in — cancel anytime and access continues until the end of your current billing period.",
+  },
+];
+
+function jsonLd(rootDomain: string): string {
+  const softwareApp = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "ServBazaar",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description:
+      "Booking, billing, a website, and a WhatsApp bot for local service businesses — cleaning, salons, repair, tutoring, pet care, fitness, and spa & laundry.",
+    url: `https://${rootDomain}/`,
+    offers: [
+      { "@type": "Offer", name: "Starter", price: "99", priceCurrency: "AED", url: `https://${rootDomain}/#pricing` },
+      { "@type": "Offer", name: "Growth", price: "199", priceCurrency: "AED", url: `https://${rootDomain}/#pricing` },
+    ],
+  };
+  const faqPage = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+  return `<script type="application/ld+json">${JSON.stringify(softwareApp)}</script>\n<script type="application/ld+json">${JSON.stringify(faqPage)}</script>`;
+}
+
 export function renderLandingPage(apiBaseUrl: string, rootDomain: string): string {
+  const canonicalUrl = `https://${rootDomain}/`;
+  const description =
+    "Booking, billing, a website, and a WhatsApp bot for local service businesses — cleaning, salons, repair, tutoring, pet care, fitness, spa & laundry. Starter AED 99, Growth AED 199.";
+
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ServBazaar — The Operating System for Service Companies</title>
-<meta name="description" content="Booking, billing, a website, and a WhatsApp bot for local service businesses — cleaning, salons, repair, tutoring, pet care, fitness, spa & laundry. Starter AED 99, Growth AED 199." />
+<meta name="description" content="${description}" />
+<link rel="canonical" href="${canonicalUrl}" />
+<meta name="theme-color" content="#4F46E5" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="ServBazaar" />
+<meta property="og:title" content="ServBazaar — The Operating System for Service Companies" />
+<meta property="og:description" content="${description}" />
+<meta property="og:url" content="${canonicalUrl}" />
+<meta property="og:locale" content="en_AE" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="ServBazaar — The Operating System for Service Companies" />
+<meta name="twitter:description" content="${description}" />
+${jsonLd(rootDomain)}
 <style>
   :root { --accent: #4F46E5; --accent2: #7C3AED; --ink: #111827; --muted: #6b7280; }
   * { box-sizing: border-box; }
@@ -39,7 +109,13 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   nav .links a.nav-link { color: var(--muted); text-decoration: none; font-size: 0.92rem; display: none; }
   nav button.login { background: none; border: 1px solid #d1d5db; padding: 0.5rem 1.1rem; border-radius: 999px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
   nav a.nav-cta { background: var(--ink); color: #fff; padding: 0.55rem 1.2rem; border-radius: 999px; text-decoration: none; font-weight: 700; font-size: 0.88rem; }
-  @media (min-width: 720px) { nav .links a.nav-link { display: inline; } }
+  nav button.hamburger { display: inline-flex; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 0.25rem 0.4rem; }
+  @media (min-width: 720px) { nav .links a.nav-link { display: inline; } nav button.hamburger { display: none; } }
+
+  .mobile-menu { display: none; position: fixed; top: 60px; left: 0; right: 0; background: #fff; border-bottom: 1px solid #f0f0f2; box-shadow: 0 12px 24px rgba(0,0,0,0.08); z-index: 49; padding: 1rem 1.5rem; flex-direction: column; gap: 0.9rem; }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a { color: var(--ink); text-decoration: none; font-size: 0.95rem; font-weight: 600; }
+  @media (min-width: 720px) { .mobile-menu { display: none !important; } }
 
   header { position: relative; padding: 5rem 1.5rem 4rem; text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent2), #111827); background-size: 200% 200%; animation: gradientShift 12s ease infinite; color: #fff; overflow: hidden; }
   @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
@@ -55,6 +131,7 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   .cta { display: inline-block; padding: 0.95rem 1.9rem; background: #fff; color: var(--accent); border-radius: 999px; text-decoration: none; font-weight: 700; transition: transform 0.2s, box-shadow 0.2s; }
   .cta:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
   .cta.ghost { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.6); margin-left: 0.75rem; }
+  .cta.dark { background: var(--ink); color: #fff; }
 
   main { max-width: 1040px; margin: 0 auto; padding: 0 1.5rem; }
   section { margin: 5rem 0; }
@@ -74,6 +151,16 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-6px) rotate(-4deg); } }
   .feature h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
   .feature p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; position: relative; }
+  .steps::before { content: ""; position: absolute; top: 28px; left: 12%; right: 12%; height: 2px; background: repeating-linear-gradient(90deg, #d1d5db 0 8px, transparent 8px 16px); z-index: 0; }
+  @media (max-width: 720px) { .steps { grid-template-columns: 1fr; } .steps::before { display: none; } }
+  .step { position: relative; z-index: 1; text-align: center; opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+  .step.visible { opacity: 1; transform: translateY(0); }
+  .step .num { width: 56px; height: 56px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); color: var(--accent); font-weight: 800; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.9rem; transition: transform 0.3s, background 0.3s, color 0.3s; }
+  .step:hover .num { transform: scale(1.12); background: var(--accent); color: #fff; }
+  .step h3 { font-size: 0.98rem; margin: 0 0 0.35rem; }
+  .step p { font-size: 0.85rem; color: var(--muted); margin: 0; }
 
   .verticals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
   .vcard { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.5rem 1rem; text-align: center; transition: transform 0.25s, box-shadow 0.25s, background 0.25s; cursor: default; }
@@ -117,6 +204,14 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   .testimonial .who { font-size: 0.85rem; color: var(--muted); }
   .testimonial-note { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 1.5rem; }
 
+  .faq { max-width: 720px; margin: 0 auto; }
+  .faq details { border-bottom: 1px solid #e5e7eb; padding: 1.1rem 0; }
+  .faq summary { cursor: pointer; font-weight: 700; font-size: 1rem; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; font-size: 1.3rem; color: var(--accent); transition: transform 0.2s; }
+  .faq details[open] summary::after { transform: rotate(45deg); }
+  .faq p { color: var(--muted); margin: 0.75rem 0 0; font-size: 0.94rem; line-height: 1.6; }
+
   #signup { background: #f9fafb; border-radius: 22px; padding: 2.5rem; }
   #signup form { max-width: 480px; margin: 0 auto; display: grid; gap: 0.9rem; }
   #signup label { font-size: 0.85rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.3rem; }
@@ -126,12 +221,21 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   #signup-result.error { color: #b91c1c; }
   #signup-result.success { color: #15803d; }
 
-  footer { text-align: center; padding: 3rem 1.5rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid #f0f0f2; }
+  .final-cta { text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 24px; padding: 3.5rem 1.5rem; color: #fff; }
+  .final-cta h2 { color: #fff; }
+  .final-cta p { color: rgba(255,255,255,0.9); max-width: 480px; margin: 0 auto 1.75rem; }
+
+  footer { text-align: center; padding: 3rem 1.5rem 5.5rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid #f0f0f2; }
   footer .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.25rem; margin-bottom: 1rem; }
   footer .footer-links a { color: var(--muted); text-decoration: none; }
   footer .footer-links a:hover { color: var(--ink); }
   footer .by { font-size: 0.82rem; }
   footer .by a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+  .sticky-cta { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60; background: #fff; border-top: 1px solid #e5e7eb; padding: 0.8rem 1.2rem; box-shadow: 0 -6px 20px rgba(0,0,0,0.08); align-items: center; justify-content: space-between; gap: 1rem; transform: translateY(100%); transition: transform 0.3s ease; }
+  .sticky-cta.show { transform: translateY(0); }
+  .sticky-cta span { font-weight: 700; font-size: 0.9rem; }
+  @media (max-width: 719px) { .sticky-cta { display: flex; } }
 
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17,24,39,0.55); z-index: 100; align-items: center; justify-content: center; padding: 1.5rem; }
   .modal-overlay.open { display: flex; }
@@ -152,12 +256,21 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   <a class="brand" href="/">ServBazaar</a>
   <div class="links">
     <a class="nav-link" href="#features">Features</a>
+    <a class="nav-link" href="#how-it-works">How it works</a>
     <a class="nav-link" href="#pricing">Pricing</a>
-    <a class="nav-link" href="#testimonials">Testimonials</a>
+    <a class="nav-link" href="#faq">FAQ</a>
     <button class="login" type="button" onclick="openLogin()">Log in</button>
     <a class="nav-cta" href="#signup">Get Started</a>
+    <button class="hamburger" type="button" onclick="toggleMobileMenu()" aria-label="Menu">☰</button>
   </div>
 </nav>
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#features" onclick="closeMobileMenu()">Features</a>
+  <a href="#how-it-works" onclick="closeMobileMenu()">How it works</a>
+  <a href="#pricing" onclick="closeMobileMenu()">Pricing</a>
+  <a href="#faq" onclick="closeMobileMenu()">FAQ</a>
+  <a href="#" onclick="closeMobileMenu(); openLogin(); return false;">Log in</a>
+</div>
 
 <header>
   <div class="inner">
@@ -179,6 +292,17 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
       <div class="feature"><div class="emoji">💬</div><h3>WhatsApp bot</h3><p>Customers book straight from WhatsApp — enquiry, quote, and confirmation, automatically.</p></div>
       <div class="feature"><div class="emoji">🧾</div><h3>Invoicing &amp; VAT</h3><p>Quote to invoice, UAE VAT handled, payment links, and auto-reminders for overdue bills.</p></div>
       <div class="feature"><div class="emoji">🌐</div><h3>Your own website</h3><p>A booking-ready site on your own subdomain — or your own domain on Growth.</p></div>
+    </div>
+  </section>
+
+  <section id="how-it-works" class="reveal">
+    <h2>Up and running in minutes</h2>
+    <p class="subhead">No developer, no setup call — just sign up and go.</p>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><h3>Sign up</h3><p>Tell us your business type and services — takes about 2 minutes.</p></div>
+      <div class="step"><div class="num">2</div><h3>Connect WhatsApp</h3><p>Link your own WhatsApp number — customers keep messaging the number they know.</p></div>
+      <div class="step"><div class="num">3</div><h3>Customers book</h3><p>Via WhatsApp or your new website — automatically, no back-and-forth.</p></div>
+      <div class="step"><div class="num">4</div><h3>Get paid</h3><p>Invoices, VAT, and payment links are handled for you.</p></div>
     </div>
   </section>
 
@@ -248,6 +372,13 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
     <p class="testimonial-note">Placeholder cards — swap in real customer quotes as they come in.</p>
   </section>
 
+  <section id="faq" class="reveal">
+    <h2>Frequently asked questions</h2>
+    <div class="faq">
+      ${FAQS.map((f) => `<details><summary>${f.q}</summary><p>${f.a}</p></details>`).join("")}
+    </div>
+  </section>
+
   <section id="signup" class="reveal">
     <h2>Get started in minutes</h2>
     <p class="subhead">Tell us about your business — we'll set up your calendar, invoicing, and website instantly.</p>
@@ -287,18 +418,30 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
     </form>
     <div id="signup-result"></div>
   </section>
+
+  <section class="final-cta reveal">
+    <h2>Ready to run your business on WhatsApp?</h2>
+    <p>Set up your booking calendar, invoicing, and website in the next five minutes.</p>
+    <a class="cta dark" href="#signup">Get Started Free</a>
+  </section>
 </main>
 
 <footer>
   <div class="footer-links">
     <a href="/#features">Features</a>
     <a href="/#pricing">Pricing</a>
+    <a href="/#faq">FAQ</a>
     <a href="/privacy">Privacy Policy</a>
     <a href="/terms">Terms of Service</a>
     <a href="https://admin.${rootDomain}">Admin</a>
   </div>
   <div class="by">A product by <a href="https://aiingo.com" target="_blank" rel="noopener">Aiingo</a></div>
 </footer>
+
+<div class="sticky-cta" id="sticky-cta">
+  <span>Ready to get started?</span>
+  <a class="cta" style="background: var(--accent); color: #fff; padding: 0.6rem 1.1rem; font-size: 0.85rem;" href="#signup">Get Started</a>
+</div>
 
 <div class="modal-overlay" id="login-overlay">
   <div class="modal">
@@ -318,8 +461,8 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
 <script>
   var API_BASE = ${JSON.stringify(apiBaseUrl)};
 
-  // Scroll-reveal animations
-  var revealEls = document.querySelectorAll('.reveal');
+  // Scroll-reveal animations (sections + step cards individually)
+  var revealEls = document.querySelectorAll('.reveal, .step');
   var observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       if (entry.isIntersecting) {
@@ -330,12 +473,28 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
   }, { threshold: 0.12 });
   revealEls.forEach(function (el) { observer.observe(el); });
 
-  // Nav shadow on scroll
+  // Stagger the 4 step cards
+  document.querySelectorAll('.step').forEach(function (el, i) {
+    el.style.transitionDelay = (i * 0.12) + 's';
+  });
+
+  // Nav shadow + sticky mobile CTA on scroll
   var navbar = document.getElementById('navbar');
+  var stickyCta = document.getElementById('sticky-cta');
+  var heroHeight = document.querySelector('header').offsetHeight;
   window.addEventListener('scroll', function () {
     if (window.scrollY > 8) navbar.classList.add('scrolled');
     else navbar.classList.remove('scrolled');
+    if (window.scrollY > heroHeight) stickyCta.classList.add('show');
+    else stickyCta.classList.remove('show');
   });
+
+  function toggleMobileMenu() {
+    document.getElementById('mobile-menu').classList.toggle('open');
+  }
+  function closeMobileMenu() {
+    document.getElementById('mobile-menu').classList.remove('open');
+  }
 
   function selectPlan(plan) {
     document.getElementById('plan').value = plan;

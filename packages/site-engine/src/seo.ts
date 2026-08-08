@@ -12,3 +12,12 @@ export function renderSitemap(host: string, sections: string[]): string {
 export function renderRobotsTxt(host: string): string {
   return `User-agent: *\nAllow: /\nSitemap: https://${host}/sitemap.xml\n`;
 }
+
+/** Marketing domain has fixed pages (no tenant/site row to read sections from). */
+export function renderMarketingSitemap(rootDomain: string): string {
+  const paths = ["", "privacy", "terms"];
+  const entries = paths
+    .map((path) => `  <url><loc>https://${rootDomain}/${path}</loc><changefreq>weekly</changefreq></url>`)
+    .join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>`;
+}

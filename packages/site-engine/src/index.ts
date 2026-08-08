@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { createDb, schema, tenantResolutionMiddleware } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { renderSitePage, type SiteContent } from "./templates/registry";
-import { renderSitemap, renderRobotsTxt } from "./seo";
+import { renderSitemap, renderRobotsTxt, renderMarketingSitemap } from "./seo";
 import { renderLandingPage } from "./templates/landing";
 import { renderPrivacyPolicy, renderTermsOfService } from "./templates/legal";
 
@@ -20,6 +20,8 @@ app.use("*", async (c, next) => {
   const path = new URL(c.req.url).pathname;
   if (path === "/privacy") return c.html(renderPrivacyPolicy(c.env.ROOT_DOMAIN));
   if (path === "/terms") return c.html(renderTermsOfService(c.env.ROOT_DOMAIN));
+  if (path === "/robots.txt") return c.text(renderRobotsTxt(c.env.ROOT_DOMAIN), 200, { "content-type": "text/plain" });
+  if (path === "/sitemap.xml") return c.text(renderMarketingSitemap(c.env.ROOT_DOMAIN), 200, { "content-type": "application/xml" });
   return c.html(renderLandingPage(c.env.API_BASE_URL, c.env.ROOT_DOMAIN));
 });
 
