@@ -1,3 +1,5 @@
+import { FAVICON_DATA_URI } from "../assets/logo";
+
 /**
  * Standard-form Privacy Policy / Terms of Service for the marketing site.
  * This is reasonable boilerplate for a UAE-based SaaS, NOT a substitute for
@@ -13,11 +15,12 @@ function legalShell(title: string, rootDomain: string, bodyHtml: string): string
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${title} — ServBazaar</title>
 <meta name="robots" content="noindex" />
+<link rel="icon" type="image/png" href="${FAVICON_DATA_URI}" />
 <style>
-  body { font-family: -apple-system, system-ui, sans-serif; color: #111827; max-width: 760px; margin: 0 auto; padding: 3rem 1.5rem 5rem; line-height: 1.65; }
-  a { color: #4F46E5; }
+  body { font-family: -apple-system, system-ui, sans-serif; color: #0d2b2b; max-width: 760px; margin: 0 auto; padding: 3rem 1.5rem 5rem; line-height: 1.65; }
+  a { color: #036f71; }
   h1 { font-size: 1.85rem; margin-bottom: 0.25rem; }
-  .updated { color: #6b7280; font-size: 0.85rem; margin-bottom: 2rem; }
+  .updated { color: #5b6b6a; font-size: 0.85rem; margin-bottom: 2rem; }
   h2 { font-size: 1.15rem; margin-top: 2.25rem; }
   ul { padding-left: 1.25rem; }
   .back { display: inline-block; margin-bottom: 2rem; font-size: 0.9rem; }

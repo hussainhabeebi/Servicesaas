@@ -1,8 +1,13 @@
+import { FAVICON_DATA_URI, LOGO_DATA_URI } from "../assets/logo";
+
 /**
  * Marketing landing page for the bare apex domain (servbazaar.com), served
  * by site-engine as a special case before tenant host resolution runs —
  * see index.ts. Not tenant content, so it doesn't touch sites/draft_content
  * the way tenant pages do.
+ *
+ * Color theme is sampled from the ServBazaar mark (teal #036f71 + gold
+ * #d2ad3a on cream) — see assets/logo.ts for the mark itself.
  *
  * Testimonials are deliberately left as clearly-marked placeholders, not
  * fabricated quotes — swap in real ones once there are real customers.
@@ -85,7 +90,8 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
 <title>ServBazaar — The Operating System for Service Companies</title>
 <meta name="description" content="${description}" />
 <link rel="canonical" href="${canonicalUrl}" />
-<meta name="theme-color" content="#4F46E5" />
+<link rel="icon" type="image/png" href="${FAVICON_DATA_URI}" />
+<meta name="theme-color" content="#036f71" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="ServBazaar" />
 <meta property="og:title" content="ServBazaar — The Operating System for Service Companies" />
@@ -97,14 +103,15 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
 <meta name="twitter:description" content="${description}" />
 ${jsonLd(rootDomain)}
 <style>
-  :root { --accent: #4F46E5; --accent2: #7C3AED; --ink: #111827; --muted: #6b7280; }
+  :root { --accent: #036f71; --accent-dark: #024f50; --gold: #d2ad3a; --gold-dark: #a8842a; --ink: #0d2b2b; --muted: #5b6b6a; --cream: #f7f6ec; }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body { font-family: -apple-system, system-ui, sans-serif; margin: 0; color: var(--ink); background: #fff; overflow-x: hidden; }
 
   nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); border-bottom: 1px solid #f0f0f2; transition: box-shadow 0.2s; }
   nav.scrolled { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
-  nav .brand { font-weight: 800; font-size: 1.1rem; color: var(--ink); text-decoration: none; }
+  nav .brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.1rem; color: var(--ink); text-decoration: none; }
+  nav .brand img { border-radius: 7px; display: block; }
   nav .links { display: flex; align-items: center; gap: 1.5rem; }
   nav .links a.nav-link { color: var(--muted); text-decoration: none; font-size: 0.92rem; display: none; }
   nav button.login { background: none; border: 1px solid #d1d5db; padding: 0.5rem 1.1rem; border-radius: 999px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
@@ -117,11 +124,11 @@ ${jsonLd(rootDomain)}
   .mobile-menu a { color: var(--ink); text-decoration: none; font-size: 0.95rem; font-weight: 600; }
   @media (min-width: 720px) { .mobile-menu { display: none !important; } }
 
-  header { position: relative; padding: 5rem 1.5rem 4rem; text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent2), #111827); background-size: 200% 200%; animation: gradientShift 12s ease infinite; color: #fff; overflow: hidden; }
+  header { position: relative; padding: 5rem 1.5rem 4rem; text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-dark), var(--ink)); background-size: 200% 200%; animation: gradientShift 12s ease infinite; color: #fff; overflow: hidden; }
   @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
   header::before, header::after { content: ""; position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.35; animation: floatBlob 10s ease-in-out infinite; }
   header::before { width: 280px; height: 280px; background: #fff; top: -80px; left: -60px; }
-  header::after { width: 220px; height: 220px; background: #fbbf24; bottom: -80px; right: -40px; animation-delay: -4s; }
+  header::after { width: 220px; height: 220px; background: var(--gold); bottom: -80px; right: -40px; animation-delay: -4s; }
   @keyframes floatBlob { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-24px) scale(1.08); } }
   header .inner { position: relative; z-index: 1; }
   header h1 { margin: 0 0 0.75rem; font-size: clamp(1.9rem, 5vw, 3rem); font-weight: 800; opacity: 0; animation: fadeInUp 0.7s ease forwards; }
@@ -143,7 +150,7 @@ ${jsonLd(rootDomain)}
 
   .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
   .feature { border: 1px solid #e5e7eb; border-radius: 14px; padding: 1.6rem; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
-  .feature:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(79,70,229,0.12); border-color: var(--accent); }
+  .feature:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(3,111,113,0.14); border-color: var(--accent); }
   .feature .emoji { font-size: 1.6rem; margin-bottom: 0.5rem; display: inline-block; animation: bob 3.2s ease-in-out infinite; }
   .feature:nth-child(2) .emoji { animation-delay: 0.4s; }
   .feature:nth-child(3) .emoji { animation-delay: 0.8s; }
@@ -163,8 +170,8 @@ ${jsonLd(rootDomain)}
   .step p { font-size: 0.85rem; color: var(--muted); margin: 0; }
 
   .verticals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
-  .vcard { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.5rem 1rem; text-align: center; transition: transform 0.25s, box-shadow 0.25s, background 0.25s; cursor: default; }
-  .vcard:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 14px 30px rgba(79,70,229,0.15); background: #eef2ff; }
+  .vcard { background: var(--cream); border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.5rem 1rem; text-align: center; transition: transform 0.25s, box-shadow 0.25s, background 0.25s; cursor: default; }
+  .vcard:hover { transform: translateY(-6px) scale(1.03); box-shadow: 0 14px 30px rgba(3,111,113,0.18); background: #e3f1f0; }
   .vcard .vemoji { font-size: 2.2rem; display: inline-block; margin-bottom: 0.6rem; }
   .vcard .vlabel { font-size: 0.88rem; font-weight: 600; color: var(--ink); }
   .vcard:hover .vemoji.sweep { animation: sweep 0.6s ease-in-out infinite; }
@@ -185,21 +192,22 @@ ${jsonLd(rootDomain)}
   .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
   .plan { border: 2px solid #e5e7eb; border-radius: 18px; padding: 2rem; transition: transform 0.25s, box-shadow 0.25s; }
   .plan:hover { transform: translateY(-6px); box-shadow: 0 16px 32px rgba(0,0,0,0.08); }
-  .plan.growth { border-color: var(--accent); position: relative; }
-  .plan .badge { position: absolute; top: -0.8rem; right: 1.5rem; background: var(--accent); color: #fff; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+  .plan.growth { border-color: var(--gold-dark); position: relative; }
+  .plan .badge { position: absolute; top: -0.8rem; right: 1.5rem; background: var(--gold); color: var(--ink); padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
   .plan h3 { margin: 0 0 0.25rem; font-size: 1.1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
   .plan .price { font-size: 2.25rem; font-weight: 800; margin: 0.25rem 0 1.25rem; }
   .plan .price span { font-size: 1rem; font-weight: 500; color: var(--muted); }
   .plan ul { list-style: none; padding: 0; margin: 0 0 1.5rem; }
   .plan li { padding: 0.4rem 0; color: #374151; font-size: 0.94rem; }
   .plan li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+  .plan.growth li::before { color: var(--gold-dark); }
   .plan button { width: 100%; padding: 0.9rem; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; transition: opacity 0.2s; }
   .plan button:hover { opacity: 0.9; }
-  .plan.starter button { background: var(--ink); }
+  .plan.growth button { background: var(--gold); color: var(--ink); }
 
   .testimonials { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
-  .testimonial { background: #f9fafb; border-radius: 14px; padding: 1.5rem; border: 1px dashed #d1d5db; }
-  .testimonial .stars { color: #f59e0b; margin-bottom: 0.5rem; }
+  .testimonial { background: var(--cream); border-radius: 14px; padding: 1.5rem; border: 1px dashed #d1d5db; }
+  .testimonial .stars { color: var(--gold-dark); margin-bottom: 0.5rem; }
   .testimonial p.quote { color: #374151; font-style: italic; margin: 0 0 0.75rem; }
   .testimonial .who { font-size: 0.85rem; color: var(--muted); }
   .testimonial-note { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 1.5rem; }
@@ -212,7 +220,7 @@ ${jsonLd(rootDomain)}
   .faq details[open] summary::after { transform: rotate(45deg); }
   .faq p { color: var(--muted); margin: 0.75rem 0 0; font-size: 0.94rem; line-height: 1.6; }
 
-  #signup { background: #f9fafb; border-radius: 22px; padding: 2.5rem; }
+  #signup { background: var(--cream); border-radius: 22px; padding: 2.5rem; }
   #signup form { max-width: 480px; margin: 0 auto; display: grid; gap: 0.9rem; }
   #signup label { font-size: 0.85rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.3rem; }
   #signup input, #signup select { width: 100%; padding: 0.7rem 0.9rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; }
@@ -221,7 +229,7 @@ ${jsonLd(rootDomain)}
   #signup-result.error { color: #b91c1c; }
   #signup-result.success { color: #15803d; }
 
-  .final-cta { text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 24px; padding: 3.5rem 1.5rem; color: #fff; }
+  .final-cta { text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); border-radius: 24px; padding: 3.5rem 1.5rem; color: #fff; }
   .final-cta h2 { color: #fff; }
   .final-cta p { color: rgba(255,255,255,0.9); max-width: 480px; margin: 0 auto 1.75rem; }
 
@@ -253,7 +261,7 @@ ${jsonLd(rootDomain)}
 <body>
 
 <nav id="navbar">
-  <a class="brand" href="/">ServBazaar</a>
+  <a class="brand" href="/"><img src="${LOGO_DATA_URI}" alt="" width="28" height="28" />ServBazaar</a>
   <div class="links">
     <a class="nav-link" href="#features">Features</a>
     <a class="nav-link" href="#how-it-works">How it works</a>
