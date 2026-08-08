@@ -131,9 +131,11 @@ against.
 3. `wrangler secret put <NAME> --env <staging|production>` for each secret.
 4. Push to `staging` or `main` — GitHub Actions (`.github/workflows/deploy.yml`)
    applies migrations and deploys both Workers.
-5. The admin dashboard is a static container image (`apps/admin/Dockerfile`)
-   — point Coolify at this repo for its own build/deploy/preview pipeline,
-   separate from the Workers pipeline above.
+5. The admin dashboard is a static container image built from the root
+   `Dockerfile` — point Coolify at this repo (Docker-based app, default
+   Dockerfile location) for its own build/deploy/preview pipeline, separate
+   from the Workers pipeline above. Set the `VITE_API_BASE` build arg to
+   your deployed app Worker's URL (e.g. `https://api.serviceos.app`).
 
 ## Design notes worth knowing before extending this
 

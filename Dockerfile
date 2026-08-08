@@ -1,3 +1,7 @@
+# Builds the admin ops dashboard (apps/admin) — the only container-deployed
+# piece of this repo; the app/site-engine Workers deploy via wrangler, not
+# Docker. Kept at the repo root (rather than apps/admin/Dockerfile) so
+# Coolify's default Dockerfile detection just works with no extra config.
 FROM node:22-alpine AS build
 WORKDIR /repo
 RUN corepack enable
