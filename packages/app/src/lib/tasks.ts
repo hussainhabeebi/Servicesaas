@@ -19,3 +19,22 @@ export async function createJobReminderTask(
     due_at: dueAt,
   });
 }
+
+/** Flags a booking that couldn't be auto-assigned a staff member (no coverage for the area/slot) so a human picks one manually. */
+export async function createStaffAssignmentTask(
+  db: ReturnType<typeof createDb>,
+  tenantId: string,
+  bookingId: string,
+  area: string | null | undefined,
+  scheduledStart: string
+) {
+  await db.insert(schema.tasks).values({
+    id: crypto.randomUUID(),
+    tenant_id: tenantId,
+    booking_id: bookingId,
+    title: area ? `Assign staff for ${area} job on ${new Date(scheduledStart).toLocaleDateString()}` : "Assign staff for new booking",
+    description: "No crew member covers this area/time automatically — pick one manually.",
+    type: "staff_assignment",
+    due_at: scheduledStart,
+  });
+}

@@ -3,6 +3,7 @@ import { createDb, schema, type Env } from "@serviceos/platform";
 import { reserveSlot } from "./booking-lock";
 import { geminiExtractBookingIntent } from "./gemini";
 import { createJobReminderTask } from "./tasks";
+import { findAvailableStaff } from "./staff-matching";
 
 /**
  * Enquiry bot (spec §5): greets, asks service type/area/date, captures the
@@ -121,9 +122,22 @@ export async function processInboundText(
 
     const start = when.toISOString();
     const end = new Date(when.getTime() + match.duration_minutes * 60_000).toISOString();
-    const bookingId = crypto.randomUUID();
 
-    const reserve = await reserveSlot(env, tenantId, undefined, bookingId, start, end);
+    // Team tenants (any staff on record) need a crew member who covers this
+    // area and is free at this time — don't confirm a job nobody can do.
+    // Solo operators (no staff rows at all) keep the old unassigned booking.
+    const [anyStaff] = await db.select({ id: schema.staff.id }).from(schema.staff).where(and(eq(schema.staff.tenant_id, tenantId), eq(schema.staff.active, true))).limit(1);
+    let staffId: string | undefined;
+    if (anyStaff) {
+      const candidates = await findAvailableStaff(db, tenantId, { area: lead.area, start, end, timezone });
+      if (candidates.length === 0 || !candidates[0]) {
+        return `Sorry, we don't have anyone free in ${lead.area ?? "your area"} at that time. Could you suggest another day or time?`;
+      }
+      staffId = candidates[0].id;
+    }
+
+    const bookingId = crypto.randomUUID();
+    const reserve = await reserveSlot(env, tenantId, staffId, bookingId, start, end);
     if (!reserve.ok) {
       return "That slot just got taken — please suggest another date/time.";
     }
@@ -132,13 +146,15 @@ export async function processInboundText(
       id: bookingId,
       tenant_id: tenantId,
       customer_id: customerId,
+      staff_id: staffId,
       service_id: match.id,
+      area: lead.area,
       status: "scheduled",
       scheduled_start: start,
       scheduled_end: end,
       source: "whatsapp",
     });
-    await createJobReminderTask(db, tenantId, bookingId, undefined, start);
+    await createJobReminderTask(db, tenantId, bookingId, staffId, start);
 
     await db.update(schema.leads).set({ status: "booked", converted_booking_id: bookingId, updated_at: new Date().toISOString() }).where(eq(schema.leads.id, lead.id));
 

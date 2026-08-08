@@ -84,6 +84,22 @@ itself — it has no `wrangler.toml`.
   configurable cancellation-fee cutoff, status pipeline
   (Scheduled → En route → In Progress → Completed), GPS/manual
   check-in/out.
+- **Location-based staff availability** (`lib/staff-matching.ts`) — for
+  on-site verticals like cleaning where a job's neighbourhood determines
+  who can even take it: each `staff` row has a `service_areas` list
+  (blank = covers everywhere), matched against a booking's free-text
+  `area` (same convention as `leads.area`/`customer_addresses.area`)
+  alongside `staff_availability` working hours and existing bookings, to
+  find who's actually free. All three booking-creation paths (app API,
+  WhatsApp bot, public website widget) auto-assign the first match when
+  the tenant has more than one crew member; solo operators (no `staff`
+  rows) are unaffected. When nobody matches, the app/website paths still
+  create the booking unassigned and drop a `staff_assignment` task for a
+  human to pick manually — the WhatsApp bot asks for a different
+  time/area instead of confirming a job nobody can do. Tenants manage
+  areas and hours from the new **Staff** page (`apps/tenant`), and
+  `GET /api/bookings/available-staff` backs the "who's free" picker
+  shown next to any unassigned booking.
 - **Billing**: quote → invoice, multi-line items, UAE VAT (tenant-level
   `vat_rate`), invoice PDF generation (`pdf-lib`) stored in R2 and sent
   over WhatsApp, payment recording + gateway payment links, cash/partial/
@@ -198,7 +214,9 @@ left as clearly-marked seams rather than faked:
 - **Dynamic pricing suggestions** — not implemented; needs an aggregate
   cross-tenant pricing dataset first.
 - **Staff route optimization** — not implemented; needs a routing/maps
-  provider.
+  provider. (This is different from the location-based *matching* above,
+  which just answers "who covers this area and is free" — optimization
+  would sequence a staff member's multiple jobs in a day by travel time.)
 - **Google Ads support (§9)** — `ad_campaigns` table and CRUD-level
   scaffolding exist; the Conversion API integration and "Boost this
   service" one-tap launch are not built.

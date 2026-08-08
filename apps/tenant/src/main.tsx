@@ -8,6 +8,7 @@ import { LeadsPage } from "./pages/Leads";
 import { CustomersPage } from "./pages/Customers";
 import { BookingsPage } from "./pages/Bookings";
 import { InvoicesPage } from "./pages/Invoices";
+import { StaffPage } from "./pages/Staff";
 import { TeamPage } from "./pages/Team";
 import { TasksPage } from "./pages/Tasks";
 import { ReportsPage } from "./pages/Reports";
@@ -36,6 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="customers" element={<CustomersPage />} />
           <Route path="bookings" element={<BookingsPage />} />
           <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="staff" element={<StaffPage />} />
           <Route path="team" element={<TeamPage />} />
           <Route path="tasks" element={<TasksPage />} />
           <Route path="reports" element={<ReportsPage />} />

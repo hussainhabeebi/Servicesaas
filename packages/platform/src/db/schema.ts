@@ -145,6 +145,10 @@ export const staff = sqliteTable(
     role: text("role").notNull().default("technician"),
     color: text("color").notNull().default("#4F46E5"),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
+    // Neighbourhoods/zones this staff member covers, matched against a
+    // booking's area on creation (see lib/staff-matching.ts). Empty = covers
+    // every area, so existing solo-operator tenants need no setup.
+    service_areas: text("service_areas", { mode: "json" }).$type<string[]>().notNull().default([]),
     ...timestamps,
   },
   (t) => [index("staff_tenant_idx").on(t.tenant_id)]
@@ -197,6 +201,11 @@ export const bookings = sqliteTable(
     staff_id: text("staff_id"),
     service_id: text("service_id").notNull(),
     address_id: text("address_id"),
+    // Free-text area/neighbourhood the job is at — same convention as
+    // leads.area / customer_addresses.area. Captured regardless of source
+    // so staff-matching (lib/staff-matching.ts) has something to match on
+    // even for WhatsApp bookings, which don't collect a full address.
+    area: text("area"),
     status: text("status").notNull().default("scheduled"), // scheduled|en_route|in_progress|completed|cancelled
     scheduled_start: text("scheduled_start").notNull(),
     scheduled_end: text("scheduled_end").notNull(),
@@ -532,7 +541,7 @@ export const tasks = sqliteTable(
     assigned_staff_id: text("assigned_staff_id"),
     title: text("title").notNull(),
     description: text("description"),
-    type: text("type").notNull().default("general"), // job_reminder|follow_up|general
+    type: text("type").notNull().default("general"), // job_reminder|follow_up|general|staff_assignment
     due_at: text("due_at"),
     status: text("status").notNull().default("pending"), // pending|done
     created_at: timestamps.created_at,

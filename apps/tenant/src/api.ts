@@ -64,6 +64,7 @@ export interface Booking {
   customer_id: string;
   staff_id: string | null;
   service_id: string;
+  area: string | null;
   status: "scheduled" | "en_route" | "in_progress" | "completed" | "cancelled";
   scheduled_start: string;
   scheduled_end: string;
@@ -83,7 +84,16 @@ export interface Staff {
   phone: string | null;
   email: string | null;
   role: string;
+  color: string;
   active: boolean;
+  service_areas: string[];
+}
+export interface StaffAvailability {
+  id: string;
+  staff_id: string;
+  day_of_week: number; // 0=Sunday .. 6=Saturday
+  start_time: string; // "09:00"
+  end_time: string; // "18:00"
 }
 export interface TeamMember {
   id: string;
@@ -157,9 +167,23 @@ export const api = {
     return request<{ bookings: Booking[] }>(`/api/bookings${qs}`);
   },
   updateBookingStatus: (id: string, status: Booking["status"]) => request(`/api/bookings/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
+  assignStaff: (bookingId: string, staffId: string) => request(`/api/bookings/${bookingId}/assign-staff`, { method: "PATCH", body: JSON.stringify({ staff_id: staffId }) }),
+  availableStaff: (params: { area?: string; start: string; end: string }) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v))).toString();
+    return request<{ staff: Array<{ id: string; name: string; color: string }> }>(`/api/bookings/available-staff?${qs}`);
+  },
 
   services: () => request<{ services: Service[] }>("/api/services"),
   staff: () => request<{ staff: Staff[] }>("/api/staff"),
+  createStaff: (body: { name: string; phone?: string; email?: string; role?: string; color?: string; service_areas?: string[] }) =>
+    request<{ id: string }>("/api/staff", { method: "POST", body: JSON.stringify(body) }),
+  updateStaff: (id: string, body: Partial<{ name: string; phone: string; email: string; role: string; color: string; active: boolean; service_areas: string[] }>) =>
+    request(`/api/staff/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  staffAvailability: (staffId: string) => request<{ availability: StaffAvailability[] }>(`/api/staff/${staffId}/availability`),
+  addStaffAvailability: (staffId: string, body: { day_of_week: number; start_time: string; end_time: string }) =>
+    request<{ id: string }>(`/api/staff/${staffId}/availability`, { method: "POST", body: JSON.stringify(body) }),
+  deleteStaffAvailability: (staffId: string, availabilityId: string) =>
+    request(`/api/staff/${staffId}/availability/${availabilityId}`, { method: "DELETE" }),
 
   invoices: () => request<{ invoices: Invoice[] }>("/api/invoices"),
   sendInvoice: (id: string) => request(`/api/invoices/${id}/send`, { method: "POST" }),

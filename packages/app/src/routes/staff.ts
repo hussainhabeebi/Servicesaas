@@ -12,6 +12,11 @@ const staffSchema = z.object({
   email: z.string().email().optional(),
   role: z.string().default("technician"),
   color: z.string().default("#4F46E5"),
+  active: z.boolean().default(true),
+  // Neighbourhoods/zones this staff member covers — empty/omitted means
+  // they cover every area (see lib/staff-matching.ts). Free text, same
+  // convention as leads.area / customer_addresses.area.
+  service_areas: z.array(z.string().min(1)).default([]),
 });
 
 const availabilitySchema = z.object({
@@ -66,4 +71,18 @@ staffRoute.get("/:id/availability", async (c) => {
       and(eq(schema.staffAvailability.staff_id, c.req.param("id")), eq(schema.staffAvailability.tenant_id, c.get("tenantId")))
     );
   return c.json({ availability: rows });
+});
+
+staffRoute.delete("/:id/availability/:availabilityId", async (c) => {
+  const db = createDb(c.env.DB);
+  await db
+    .delete(schema.staffAvailability)
+    .where(
+      and(
+        eq(schema.staffAvailability.id, c.req.param("availabilityId")),
+        eq(schema.staffAvailability.staff_id, c.req.param("id")),
+        eq(schema.staffAvailability.tenant_id, c.get("tenantId"))
+      )
+    );
+  return c.json({ ok: true });
 });
