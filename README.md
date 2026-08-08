@@ -131,17 +131,57 @@ itself — it has no `wrangler.toml`.
   a JWT to `apps/tenant` (see below) via `?token=` — localStorage doesn't
   cross the `servbazaar.com` → `app.servbazaar.com` origin boundary, so the
   token rides in the URL once, then gets stored and scrubbed from the
-  address bar. The Meta Embedded Signup widget itself (for connecting
-  WhatsApp) still needs a proper frontend — `GET /api/whatsapp/config`
-  exists for whenever that's built.
+  address bar.
 - **Tenant dashboard** (`apps/tenant`, Cloudflare Pages): the owner-facing
   app — Today, Leads (kanban), Customers (CRM), Bookings, Quotes &
-  Invoices, Team, Tasks, Reports, Broadcasts, Vendor Bills, Billing.
+  Invoices, Services, Staff, Team, Tasks, Reports, Broadcasts, Vendor
+  Bills, WhatsApp, Billing. Installable as a PWA (manifest + service
+  worker + custom install prompt), branded with the ServBazaar mark.
   **Leads and Customers are intentionally separate pages backed by
   separate tables** (`leads` vs `customers`) — a lead only becomes a
   customer once they actually book, and the two views are never merged,
   so "who's a live prospect" and "who's already paid you" stay visually
   and structurally distinct.
+- **WhatsApp connection with coexistence support** (`apps/tenant`'s
+  WhatsApp page + `routes/whatsapp-connect.ts`): the Meta Embedded Signup
+  widget is now actually built (previously only the backend existed).
+  Explicitly surfaces Meta's WhatsApp Business app + Cloud API
+  "coexistence" path — a tenant who already runs the consumer WhatsApp
+  Business app keeps using it exactly as before (no lost chats/contacts,
+  nothing deregistered) while the bot also starts handling that same
+  number. Which path Meta actually offered a given number is read from
+  the Embedded Signup postMessage event and stored on
+  `tenants.onboarding_type` for support visibility — not something the
+  tenant chooses up front, since Meta decides eligibility per number.
+- **No-show protection / deposits** (`services.deposit_type`/
+  `deposit_value`, `lib/deposits.ts`): a service can require a fixed AED
+  amount or a percentage of its price as a deposit. Every booking-creation
+  path (app, WhatsApp bot, public widget) auto-creates and WhatsApp-sends
+  a dedicated deposit invoice the moment a booking is made — reusing the
+  exact same invoice/PDF/payment-link machinery a normal invoice uses
+  (`invoices.kind = 'deposit'`) rather than a parallel payment system.
+  Configured per-service from the new Services page.
+- **Real reviews on tenant websites** (`site-engine/templates/registry.ts`):
+  actually-submitted reviews (`reviews` table, rating + comment) now
+  render as testimonials on a tenant's own site, with an honest
+  `AggregateRating` JSON-LD block — omitted entirely when there are no
+  real reviews yet, never faked. Falls back to the tenant's hand-typed
+  testimonials only when no real reviews exist.
+- **Deep SEO pass, both sites**: tenant sites gained `LocalBusiness` +
+  `Service`/`Offer` JSON-LD, Open Graph/Twitter tags, a canonical link,
+  and a favicon (the tenant's uploaded logo, or ServBazaar's mark as a
+  fallback so no site ships faviconless). The marketing site gained a
+  real Open Graph share image (`GET /og-image.jpg`, rendered once via a
+  headless-browser screenshot of the actual brand gradient + logo, then
+  served as static bytes baked into the Worker — data URIs aren't
+  reliably fetched by social-share crawlers, so this needed a real URL)
+  and an `Organization` JSON-LD block alongside the existing
+  `SoftwareApplication`/`FAQPage` schema.
+- **Light loyalty tracking** (`customers.completed_bookings_count`,
+  `lib/loyalty.ts`): auto-increments whenever a booking is marked
+  completed (guarded against double-counting), surfaced as a milestone
+  badge on the Customers page. No separate rewards ledger — a visibility
+  tool, not an automated discount engine.
 - **Domain module**: Cloudflare for SaaS custom-hostname registration,
   plain-language DNS record translation, status polling
   (`POST /domains/:id/check`), subdomain always active as fallback.
@@ -229,6 +269,27 @@ left as clearly-marked seams rather than faked:
 - **B2B / CPQ suite** (contracts, recurring commercial clients) — not
   implemented; `customers.has_active_contract` exists as a flag but
   there's no contract or quote-builder data model behind it yet.
+- **Arabic / RTL support** — not implemented. Deliberately deferred rather
+  than done shallowly: it touches the WhatsApp bot's Gemini prompts, every
+  site-engine template (landing, tenant sites, legal pages) needing RTL
+  CSS, and invoice PDFs — and `pdf-lib` (used by `lib/pdf.ts`) doesn't do
+  Arabic contextual letter shaping out of the box, so Arabic invoice text
+  would render as disconnected, incorrect glyphs without a proper
+  shaping-aware font pipeline. `tenants.locale` (`en`/`ar`) already exists
+  as a schema seam for whenever this gets built properly.
+- **Usage-based pricing tier for WhatsApp conversation costs** — not
+  implemented. Meta bills WhatsApp Business Platform conversations
+  per-conversation, a cost that scales with a tenant's message volume
+  while Starter/Growth are flat AED 99/199 — a real margin risk once
+  usage is high enough, worth watching, but the actual tier
+  structure/pricing numbers are a business decision, not something to
+  invent unprompted in code.
+- **Public discovery/directory page** (e.g. `servbazaar.com/dubai/cleaning`
+  listing tenants) — not implemented. ServBazaar currently sells tools to
+  existing businesses; it doesn't bring them new customers the way a
+  marketplace does. A public directory built from real tenant data + real
+  reviews would double as inbound SEO, but needs a per-tenant opt-in
+  (not every tenant wants to be publicly listed) that doesn't exist yet.
 
 ## Local development
 

@@ -7,6 +7,8 @@ import { bookingCalendarId } from "../durable-objects/booking-calendar";
 import { reserveSlot } from "../lib/booking-lock";
 import { createJobReminderTask, createStaffAssignmentTask } from "../lib/tasks";
 import { findAvailableStaff } from "../lib/staff-matching";
+import { createAndSendDepositInvoice } from "../lib/deposits";
+import { recordCompletionIfNew } from "../lib/loyalty";
 
 export const bookingsRoute = new Hono<AppContext>();
 
@@ -100,6 +102,11 @@ bookingsRoute.post("/", async (c) => {
   const db = createDb(c.env.DB);
 
   const { area, staffId, autoAssignFailed } = await resolveAreaAndStaff(db, tenantId, input);
+  const [service] = await db
+    .select({ id: schema.services.id, name: schema.services.name, price: schema.services.price, deposit_type: schema.services.deposit_type, deposit_value: schema.services.deposit_value })
+    .from(schema.services)
+    .where(eq(schema.services.id, input.service_id))
+    .limit(1);
 
   const created: Array<{ id: string; scheduled_start: string; scheduled_end: string }> = [];
   let start = input.scheduled_start;
@@ -136,6 +143,8 @@ bookingsRoute.post("/", async (c) => {
 
     await createJobReminderTask(db, tenantId, bookingId, staffId, start);
     if (i === 0 && autoAssignFailed) await createStaffAssignmentTask(db, tenantId, bookingId, area, start);
+    // Deposit only applies to the first occurrence of a recurring series, not every instance.
+    if (i === 0 && service) await createAndSendDepositInvoice(c.env, tenantId, { bookingId, customerId: input.customer_id, service }).catch(() => {});
 
     created.push({ id: bookingId, scheduled_start: start, scheduled_end: end });
     if (i === 0) parentId = bookingId;
@@ -251,10 +260,13 @@ bookingsRoute.post("/:id/status", async (c) => {
   const parsed = statusSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const db = createDb(c.env.DB);
+  const tenantId = c.get("tenantId");
+  const bookingId = c.req.param("id");
+  await recordCompletionIfNew(db, tenantId, bookingId, parsed.data.status);
   await db
     .update(schema.bookings)
     .set({ status: parsed.data.status, updated_at: new Date().toISOString() })
-    .where(and(eq(schema.bookings.id, c.req.param("id")), eq(schema.bookings.tenant_id, c.get("tenantId"))));
+    .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)));
   return c.json({ ok: true });
 });
 
@@ -281,6 +293,9 @@ bookingsRoute.post("/:id/checkout", async (c) => {
   const parsed = checkSchema.safeParse(await c.req.json().catch(() => ({})));
   const data = parsed.success ? parsed.data : {};
   const db = createDb(c.env.DB);
+  const tenantId = c.get("tenantId");
+  const bookingId = c.req.param("id");
+  await recordCompletionIfNew(db, tenantId, bookingId, "completed");
   await db
     .update(schema.bookings)
     .set({
@@ -290,6 +305,6 @@ bookingsRoute.post("/:id/checkout", async (c) => {
       checkout_lng: data.lng,
       updated_at: new Date().toISOString(),
     })
-    .where(and(eq(schema.bookings.id, c.req.param("id")), eq(schema.bookings.tenant_id, c.get("tenantId"))));
+    .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)));
   return c.json({ ok: true });
 });

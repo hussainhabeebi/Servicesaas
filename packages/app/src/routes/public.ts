@@ -6,6 +6,7 @@ import type { AppContext } from "@serviceos/platform";
 import { reserveSlot } from "../lib/booking-lock";
 import { createJobReminderTask, createStaffAssignmentTask } from "../lib/tasks";
 import { findAvailableStaff } from "../lib/staff-matching";
+import { createAndSendDepositInvoice } from "../lib/deposits";
 
 /**
  * Unauthenticated storefront endpoints for the tenant's website booking
@@ -105,5 +106,7 @@ publicRoute.post("/bookings", async (c) => {
   await createJobReminderTask(db, tenantId, bookingId, staffId, start);
   if (autoAssignFailed) await createStaffAssignmentTask(db, tenantId, bookingId, input.area, start);
 
-  return c.json({ id: bookingId, scheduled_start: start, scheduled_end: end }, 201);
+  const deposit = await createAndSendDepositInvoice(c.env, tenantId, { bookingId, customerId, service }).catch(() => ({ ok: false as const }));
+
+  return c.json({ id: bookingId, scheduled_start: start, scheduled_end: end, depositRequired: deposit.ok ? deposit.amount : null }, 201);
 });

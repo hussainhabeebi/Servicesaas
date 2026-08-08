@@ -27,11 +27,31 @@ whatsappConnectRoute.get("/config", (c) => {
   return c.json({ metaAppId: c.env.META_APP_ID, embeddedSignupConfigId: c.env.META_EMBEDDED_SIGNUP_CONFIG_ID });
 });
 
+/** So the app UI can show "connected" vs a connect prompt without re-running the widget. */
+whatsappConnectRoute.get("/status", async (c) => {
+  const db = createDb(c.env.DB);
+  const [tenant] = await db
+    .select({ whatsapp_number: schema.tenants.whatsapp_number, chatwoot_inbox_id: schema.tenants.chatwoot_inbox_id, onboarding_type: schema.tenants.onboarding_type })
+    .from(schema.tenants)
+    .where(eq(schema.tenants.id, c.get("tenantId")))
+    .limit(1);
+  return c.json({
+    connected: Boolean(tenant?.chatwoot_inbox_id),
+    whatsappNumber: tenant?.whatsapp_number ?? null,
+    onboardingType: tenant?.onboarding_type ?? null,
+  });
+});
+
 const connectSchema = z.object({
   code: z.string().min(1),
   wabaId: z.string().optional(),
   phoneNumberId: z.string().optional(),
   phoneNumber: z.string().optional(), // E.164, if the widget surfaced it — otherwise taken from Chatwoot's inbox response
+  // Which Embedded Signup completion event the widget saw — see the
+  // FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING vs FINISH_ONLY_WABA handling in
+  // apps/tenant's ConnectWhatsApp page. Meta decides which path a given
+  // phone number is eligible for; the client just reports what happened.
+  onboardingType: z.enum(["coexistence", "new_number"]).optional(),
 });
 
 whatsappConnectRoute.post("/connect", async (c) => {
@@ -70,7 +90,13 @@ whatsappConnectRoute.post("/connect", async (c) => {
   const whatsappNumber = parsed.data.phoneNumber ?? inbox.phoneNumber;
   await db
     .update(schema.tenants)
-    .set({ chatwoot_account_id: accountId, chatwoot_inbox_id: inbox.inboxId, whatsapp_number: whatsappNumber, updated_at: new Date().toISOString() })
+    .set({
+      chatwoot_account_id: accountId,
+      chatwoot_inbox_id: inbox.inboxId,
+      whatsapp_number: whatsappNumber,
+      onboarding_type: parsed.data.onboardingType ?? tenant.onboarding_type,
+      updated_at: new Date().toISOString(),
+    })
     .where(eq(schema.tenants.id, tenantId));
 
   return c.json({ ok: true, chatwootAccountId: accountId, chatwootInboxId: inbox.inboxId, whatsappNumber });

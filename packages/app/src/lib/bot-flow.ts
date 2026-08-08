@@ -4,6 +4,7 @@ import { reserveSlot } from "./booking-lock";
 import { geminiExtractBookingIntent } from "./gemini";
 import { createJobReminderTask } from "./tasks";
 import { findAvailableStaff } from "./staff-matching";
+import { createAndSendDepositInvoice, depositAmount } from "./deposits";
 
 /**
  * Enquiry bot (spec §5): greets, asks service type/area/date, captures the
@@ -20,7 +21,15 @@ import { findAvailableStaff } from "./staff-matching";
 
 async function loadActiveServices(db: ReturnType<typeof createDb>, tenantId: string) {
   return db
-    .select({ id: schema.services.id, name: schema.services.name, category: schema.services.category, price: schema.services.price, duration_minutes: schema.services.duration_minutes })
+    .select({
+      id: schema.services.id,
+      name: schema.services.name,
+      category: schema.services.category,
+      price: schema.services.price,
+      duration_minutes: schema.services.duration_minutes,
+      deposit_type: schema.services.deposit_type,
+      deposit_value: schema.services.deposit_value,
+    })
     .from(schema.services)
     .where(and(eq(schema.services.tenant_id, tenantId), eq(schema.services.active, true)));
 }
@@ -91,7 +100,9 @@ export async function processInboundText(
 
     const match = matchedService(extraction?.serviceMatchIndex);
     if (match && !extraction?.isCustomRequest) {
-      return `Got it. ${match.name} typically starts at AED ${match.price.toFixed(0)} (approx. ${match.duration_minutes} mins). To book, just tell me your preferred date & time (e.g. "tomorrow at 2pm" or "15 Aug, 2pm"). For anything custom, our team will follow up shortly.`;
+      const deposit = depositAmount(match);
+      const depositNote = deposit > 0 ? ` A deposit of AED ${deposit.toFixed(0)} confirms the booking.` : "";
+      return `Got it. ${match.name} typically starts at AED ${match.price.toFixed(0)} (approx. ${match.duration_minutes} mins).${depositNote} To book, just tell me your preferred date & time (e.g. "tomorrow at 2pm" or "15 Aug, 2pm"). For anything custom, our team will follow up shortly.`;
     }
     return "Thanks — that's a bit more custom, so one of our team will follow up shortly with a quote.";
   }
@@ -158,7 +169,10 @@ export async function processInboundText(
 
     await db.update(schema.leads).set({ status: "booked", converted_booking_id: bookingId, updated_at: new Date().toISOString() }).where(eq(schema.leads.id, lead.id));
 
-    return `You're booked! ${match.name} on ${when.toUTCString()}. We'll send a reminder before your appointment.`;
+    const deposit = await createAndSendDepositInvoice(env, tenantId, { bookingId, customerId, service: match }).catch(() => ({ ok: false as const }));
+    const depositNote = deposit.ok ? ` We've sent a deposit invoice of AED ${deposit.amount?.toFixed(2)} to confirm.` : "";
+
+    return `You're booked! ${match.name} on ${when.toUTCString()}.${depositNote} We'll send a reminder before your appointment.`;
   }
 
   return "Thanks for the message — a team member will follow up with you shortly.";

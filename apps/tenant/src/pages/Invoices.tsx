@@ -38,7 +38,14 @@ export function InvoicesPage() {
         <tbody>
           {invoices.map((inv) => (
             <tr key={inv.id}>
-              <td style={td}>{inv.invoice_number}</td>
+              <td style={td}>
+                {inv.invoice_number}
+                {inv.kind === "deposit" && (
+                  <span style={{ marginLeft: "0.4rem" }}>
+                    <Badge color="#d2ad3a">deposit</Badge>
+                  </span>
+                )}
+              </td>
               <td style={td}>
                 <Badge color={STATUS_COLORS[inv.status] ?? "#6b7280"}>{inv.status}</Badge>
               </td>

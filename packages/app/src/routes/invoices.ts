@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
-import { createDb, schema, sendChatwootProactiveMessage } from "@serviceos/platform";
+import { createDb, schema } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { calculateInvoiceTotals, nextInvoiceNumber } from "../lib/vat";
-import { renderInvoicePdf } from "../lib/pdf";
+import { sendInvoiceViaWhatsApp } from "../lib/invoicing";
 
 export const invoicesRoute = new Hono<AppContext>();
 
@@ -94,52 +94,9 @@ invoicesRoute.get("/:id", async (c) => {
 
 /** Renders the invoice PDF, stores it in R2, and sends it to the customer over WhatsApp. */
 invoicesRoute.post("/:id/send", async (c) => {
-  const tenantId = c.get("tenantId");
-  const db = createDb(c.env.DB);
-  const invoiceId = c.req.param("id");
-
-  const [invoice] = await db.select().from(schema.invoices).where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.tenant_id, tenantId))).limit(1);
-  if (!invoice) return c.json({ error: "Not found" }, 404);
-  const [tenant] = await db.select().from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
-  const [customer] = await db.select().from(schema.customers).where(eq(schema.customers.id, invoice.customer_id)).limit(1);
-  const lineItems = await db.select().from(schema.invoiceLineItems).where(eq(schema.invoiceLineItems.invoice_id, invoiceId));
-  if (!tenant || !customer) return c.json({ error: "Missing tenant or customer" }, 400);
-
-  const pdfBytes = await renderInvoicePdf({
-    tenantName: tenant.business_name,
-    tenantAddress: tenant.address,
-    invoiceNumber: invoice.invoice_number,
-    issuedDate: invoice.created_at.slice(0, 10),
-    dueDate: invoice.due_date,
-    customerName: customer.name,
-    currency: invoice.currency,
-    lineItems,
-    subtotal: invoice.subtotal,
-    vatAmount: invoice.vat_amount,
-    vatRate: tenant.vat_rate,
-    total: invoice.total,
-  });
-
-  const r2Key = `${tenantId}/invoices/${invoice.invoice_number}.pdf`;
-  await c.env.FILES.put(r2Key, pdfBytes, { httpMetadata: { contentType: "application/pdf" } });
-
-  await db
-    .update(schema.invoices)
-    .set({ status: "sent", pdf_r2_key: r2Key, sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .where(eq(schema.invoices.id, invoiceId));
-
-  const waResult =
-    tenant.chatwoot_inbox_id && tenant.chatwoot_account_id
-      ? await sendChatwootProactiveMessage(
-          { baseUrl: c.env.CHATWOOT_BASE_URL, apiAccessToken: c.env.CHATWOOT_AGENT_BOT_TOKEN, accountId: tenant.chatwoot_account_id },
-          tenant.chatwoot_inbox_id,
-          customer.phone,
-          customer.name,
-          `Hi ${customer.name}, here's your invoice ${invoice.invoice_number} from ${tenant.business_name}: ${invoice.currency} ${invoice.total.toFixed(2)}. Total due${invoice.due_date ? ` by ${invoice.due_date}` : ""}.`
-        ).catch((e) => ({ ok: false, error: String(e) }))
-      : { ok: false, error: "WhatsApp not connected for this tenant" };
-
-  return c.json({ ok: true, r2Key, whatsappSent: waResult.ok });
+  const result = await sendInvoiceViaWhatsApp(c.env, c.get("tenantId"), c.req.param("id"));
+  if (!result.ok) return c.json({ error: result.error }, result.error === "Not found" ? 404 : 400);
+  return c.json(result);
 });
 
 const recordPaymentSchema = z.object({

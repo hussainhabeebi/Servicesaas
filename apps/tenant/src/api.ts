@@ -58,6 +58,7 @@ export interface Customer {
   tags: string[];
   is_repeat_customer: boolean;
   has_active_contract: boolean;
+  completed_bookings_count: number;
 }
 export interface Booking {
   id: string;
@@ -77,6 +78,8 @@ export interface Service {
   duration_minutes: number;
   price: number;
   active: boolean;
+  deposit_type: "none" | "fixed" | "percentage";
+  deposit_value: number;
 }
 export interface Staff {
   id: string;
@@ -108,6 +111,7 @@ export interface Invoice {
   id: string;
   invoice_number: string;
   customer_id: string;
+  kind: "standard" | "deposit";
   status: "draft" | "sent" | "paid" | "partial" | "overdue" | "cancelled";
   subtotal: number;
   vat_amount: number;
@@ -174,6 +178,11 @@ export const api = {
   },
 
   services: () => request<{ services: Service[] }>("/api/services"),
+  createService: (body: { name: string; category?: string; duration_minutes?: number; price?: number; deposit_type?: Service["deposit_type"]; deposit_value?: number }) =>
+    request<{ id: string }>("/api/services", { method: "POST", body: JSON.stringify(body) }),
+  updateService: (id: string, body: Partial<Pick<Service, "name" | "category" | "duration_minutes" | "price" | "deposit_type" | "deposit_value">>) =>
+    request(`/api/services/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteService: (id: string) => request(`/api/services/${id}`, { method: "DELETE" }),
   staff: () => request<{ staff: Staff[] }>("/api/staff"),
   createStaff: (body: { name: string; phone?: string; email?: string; role?: string; color?: string; service_areas?: string[] }) =>
     request<{ id: string }>("/api/staff", { method: "POST", body: JSON.stringify(body) }),
@@ -217,4 +226,9 @@ export const api = {
 
   billing: () => request<{ plan: "starter" | "growth"; subscription_status: string; next_billing_date: string | null; monthlyPrice: number }>("/api/billing"),
   changePlan: (plan: "starter" | "growth") => request("/api/billing/plan", { method: "PATCH", body: JSON.stringify({ plan }) }),
+
+  whatsappConfig: () => request<{ metaAppId: string | null; embeddedSignupConfigId: string | null }>("/api/whatsapp/config"),
+  whatsappStatus: () => request<{ connected: boolean; whatsappNumber: string | null; onboardingType: "coexistence" | "new_number" | null }>("/api/whatsapp/status"),
+  whatsappConnect: (body: { code: string; wabaId?: string; phoneNumberId?: string; phoneNumber?: string; onboardingType?: "coexistence" | "new_number" }) =>
+    request<{ ok: boolean; whatsappNumber: string | null }>("/api/whatsapp/connect", { method: "POST", body: JSON.stringify(body) }),
 };

@@ -36,6 +36,12 @@ export const tenants = sqliteTable(
     whatsapp_number: text("whatsapp_number"), // E.164, for the public wa.me click-to-chat link
     chatwoot_account_id: integer("chatwoot_account_id"),
     chatwoot_inbox_id: integer("chatwoot_inbox_id"),
+    // Which Embedded Signup path the tenant completed — 'coexistence' means
+    // they kept their existing WhatsApp Business app number connected
+    // (Meta's app+API coexistence feature), 'new_number' means they set up
+    // a Cloud-API-only number. Support/analytics only; both are fully
+    // functional once connected. See routes/whatsapp-connect.ts.
+    onboarding_type: text("onboarding_type"), // coexistence|new_number|null (not connected yet)
     // Self-serve billing (spec: "manage your own subscription") — tracks
     // the platform subscription itself, separate from the payment gateway
     // wrappers in payments/*, which are for the TENANT's own customers
@@ -104,6 +110,10 @@ export const customers = sqliteTable(
     preferences: text("preferences", { mode: "json" }).$type<Record<string, unknown>>().default({}),
     is_repeat_customer: integer("is_repeat_customer", { mode: "boolean" }).notNull().default(false),
     has_active_contract: integer("has_active_contract", { mode: "boolean" }).notNull().default(false),
+    // Incremented whenever one of this customer's bookings is marked
+    // completed (bookings.ts) — powers the loyalty milestone badge in the
+    // Customers UI. Simple counter, no separate rewards ledger yet.
+    completed_bookings_count: integer("completed_bookings_count").notNull().default(0),
     ...timestamps,
   },
   (t) => [
@@ -183,6 +193,11 @@ export const services = sqliteTable(
     description: text("description"),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     recurrence_options: text("recurrence_options", { mode: "json" }).$type<string[]>().default([]), // weekly|biweekly|monthly
+    // No-show protection: a deposit invoice auto-generates at booking time
+    // when set (see lib/deposits.ts). 'none' keeps today's no-deposit
+    // behavior with zero setup.
+    deposit_type: text("deposit_type").notNull().default("none"), // none|fixed|percentage
+    deposit_value: real("deposit_value").notNull().default(0), // AED amount if fixed, 0-100 if percentage
     ...timestamps,
   },
   (t) => [index("services_tenant_idx").on(t.tenant_id)]
@@ -243,6 +258,7 @@ export const invoices = sqliteTable(
     booking_id: text("booking_id"),
     customer_id: text("customer_id").notNull(),
     invoice_number: text("invoice_number").notNull(),
+    kind: text("kind").notNull().default("standard"), // standard|deposit — deposit invoices are auto-created by lib/deposits.ts
     status: text("status").notNull().default("draft"), // draft|sent|paid|partial|overdue|cancelled
     subtotal: real("subtotal").notNull().default(0),
     vat_amount: real("vat_amount").notNull().default(0),

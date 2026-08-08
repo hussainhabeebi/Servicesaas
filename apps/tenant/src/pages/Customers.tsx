@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api, type Customer } from "../api";
 import { pageTitle, table, th, td, Badge } from "../ui";
 
+const LOYALTY_MILESTONE = 5;
+
 /** Existing customers only — people who've actually booked (customers table). Leads live on their own page, never mixed in here. */
 export function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -27,6 +29,7 @@ export function CustomersPage() {
             <th style={th}>Tags</th>
             <th style={th}>Repeat</th>
             <th style={th}>Contract</th>
+            <th style={th}>Loyalty</th>
           </tr>
         </thead>
         <tbody>
@@ -43,6 +46,13 @@ export function CustomersPage() {
               </td>
               <td style={td}>{c.is_repeat_customer ? "Yes" : "—"}</td>
               <td style={td}>{c.has_active_contract ? "Active" : "—"}</td>
+              <td style={td}>
+                {c.completed_bookings_count >= LOYALTY_MILESTONE ? (
+                  <Badge color="#d2ad3a">🎁 {c.completed_bookings_count} completed</Badge>
+                ) : (
+                  <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>{c.completed_bookings_count}/{LOYALTY_MILESTONE}</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

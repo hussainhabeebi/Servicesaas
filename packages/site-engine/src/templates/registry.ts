@@ -1,3 +1,5 @@
+import { FAVICON_DATA_URI } from "../assets/logo";
+
 /**
  * Content and template are decoupled (spec §8): `sites.draft_content` /
  * `live_content` hold the tenant's actual copy, while this file supplies
@@ -44,8 +46,18 @@ export interface ServiceForSite {
   duration_minutes: number;
 }
 
+export interface ReviewForSite {
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+}
+
 export function escapeHtml(input: string): string {
   return input.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
+}
+
+function jsonLdScript(data: unknown): string {
+  return `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
 }
 
 export function renderSitePage(opts: {
@@ -53,9 +65,12 @@ export function renderSitePage(opts: {
   content: SiteContent;
   sectionsEnabled: string[];
   services: ServiceForSite[];
+  reviews: ReviewForSite[];
   currency: string;
   waLink?: string;
   isDraftPreview: boolean;
+  canonicalUrl: string;
+  phone?: string;
 }): string {
   const theme = getTheme(opts.templateKey);
   const name = escapeHtml(opts.content.businessName ?? "Our Business");
@@ -67,11 +82,24 @@ export function renderSitePage(opts: {
         .join("")}</ul></section>`
     : "";
 
+  // Real submitted reviews take priority over hand-typed testimonials — an
+  // honest signal beats manually-entered copy. Falls back to the manual
+  // list only when there are no real reviews yet.
+  const reviewsToShow = opts.reviews.length > 0 ? opts.reviews : null;
+  const manualTestimonials = !reviewsToShow && opts.content.testimonials?.length ? opts.content.testimonials : null;
+
   const testimonialsSection =
-    opts.sectionsEnabled.includes("testimonials") && opts.content.testimonials?.length
-      ? `<section id="testimonials"><h2>What customers say</h2>${opts.content.testimonials
-          .map((t) => `<blockquote>"${escapeHtml(t.quote)}" — ${escapeHtml(t.name)}</blockquote>`)
-          .join("")}</section>`
+    opts.sectionsEnabled.includes("testimonials") && (reviewsToShow || manualTestimonials)
+      ? `<section id="testimonials"><h2>What customers say</h2>${
+          reviewsToShow
+            ? reviewsToShow
+                .map(
+                  (r) =>
+                    `<blockquote>${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}${r.comment ? ` "${escapeHtml(r.comment)}"` : ""} — ${escapeHtml(r.customerName ?? "Verified customer")}</blockquote>`
+                )
+                .join("")
+            : manualTestimonials!.map((t) => `<blockquote>"${escapeHtml(t.quote)}" — ${escapeHtml(t.name)}</blockquote>`).join("")
+        }</section>`
       : "";
 
   const gallerySection =
@@ -85,6 +113,40 @@ export function renderSitePage(opts: {
     ? `<section id="service-area"><h2>Where we work</h2><p>${escapeHtml(opts.content.address ?? "Serving your area")}</p></section>`
     : "";
 
+  // Structured data: only claim what's actually true. AggregateRating is
+  // omitted entirely (not zeroed/faked) when there are no real reviews yet.
+  const ratingCount = opts.reviews.length;
+  const avgRating = ratingCount > 0 ? Math.round((opts.reviews.reduce((sum, r) => sum + r.rating, 0) / ratingCount) * 10) / 10 : null;
+
+  const localBusiness: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: opts.content.businessName ?? "Our Business",
+    description: opts.content.heroText ?? theme.heroSubtext,
+    url: opts.canonicalUrl,
+    ...(opts.phone ? { telephone: opts.phone } : {}),
+    ...(opts.content.address ? { address: { "@type": "PostalAddress", streetAddress: opts.content.address } } : {}),
+    ...(opts.content.logoUrl ? { image: opts.content.logoUrl } : {}),
+    priceRange: opts.currency,
+    ...(avgRating && ratingCount > 0
+      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: avgRating, reviewCount: ratingCount } }
+      : {}),
+  };
+
+  const serviceListLd =
+    opts.services.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: opts.services.map((s, i) => ({
+            "@type": "Service",
+            position: i + 1,
+            name: s.name,
+            offers: { "@type": "Offer", price: s.price, priceCurrency: opts.currency },
+          })),
+        }
+      : null;
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -92,7 +154,19 @@ export function renderSitePage(opts: {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${name} — Book Online</title>
 <meta name="description" content="${hero}" />
+<link rel="canonical" href="${escapeHtml(opts.canonicalUrl)}" />
+<link rel="icon" href="${opts.content.logoUrl ? escapeHtml(opts.content.logoUrl) : FAVICON_DATA_URI}" />
+<meta property="og:type" content="business.business" />
+<meta property="og:title" content="${name}" />
+<meta property="og:description" content="${hero}" />
+<meta property="og:url" content="${escapeHtml(opts.canonicalUrl)}" />
+${opts.content.logoUrl ? `<meta property="og:image" content="${escapeHtml(opts.content.logoUrl)}" />` : ""}
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="${name}" />
+<meta name="twitter:description" content="${hero}" />
 ${opts.isDraftPreview ? '<meta name="robots" content="noindex" />' : ""}
+${jsonLdScript(localBusiness)}
+${serviceListLd ? jsonLdScript(serviceListLd) : ""}
 <style>
   :root { --accent: ${theme.accent}; }
   * { box-sizing: border-box; }
@@ -126,7 +200,7 @@ ${opts.isDraftPreview ? '<meta name="robots" content="noindex" />' : ""}
   <section id="contact"><h2>Contact</h2><p>${escapeHtml(opts.content.hours ?? "")}</p>${opts.content.phone ? `<p>${escapeHtml(opts.content.phone)}</p>` : ""}</section>
 </main>
 ${opts.waLink ? `<a class="wa-button" href="${escapeHtml(opts.waLink)}" target="_blank" rel="noopener">Chat on WhatsApp</a>` : ""}
-<footer>Powered by ServiceOS</footer>
+<footer>Powered by ServBazaar</footer>
 </body>
 </html>`;
 }

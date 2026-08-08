@@ -13,6 +13,11 @@ const serviceSchema = z.object({
   price: z.number().nonnegative().default(0),
   description: z.string().optional(),
   recurrence_options: z.array(z.enum(["weekly", "biweekly", "monthly"])).default([]),
+  // No-show protection: 'none' (default) keeps today's behavior. 'fixed' is
+  // an AED amount, 'percentage' is 0-100 of the service price. See
+  // lib/deposits.ts for where this gets turned into an actual invoice.
+  deposit_type: z.enum(["none", "fixed", "percentage"]).default("none"),
+  deposit_value: z.number().nonnegative().default(0),
 });
 
 servicesRoute.get("/", async (c) => {

@@ -65,6 +65,14 @@ function jsonLd(rootDomain: string): string {
       { "@type": "Offer", name: "Growth", price: "199", priceCurrency: "AED", url: `https://${rootDomain}/#pricing` },
     ],
   };
+  const organization = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "ServBazaar",
+    url: `https://${rootDomain}/`,
+    logo: `https://${rootDomain}/logo.png`,
+    sameAs: ["https://aiingo.com"],
+  };
   const faqPage = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -74,7 +82,7 @@ function jsonLd(rootDomain: string): string {
       acceptedAnswer: { "@type": "Answer", text: f.a },
     })),
   };
-  return `<script type="application/ld+json">${JSON.stringify(softwareApp)}</script>\n<script type="application/ld+json">${JSON.stringify(faqPage)}</script>`;
+  return [softwareApp, organization, faqPage].map((d) => `<script type="application/ld+json">${JSON.stringify(d)}</script>`).join("\n");
 }
 
 export function renderLandingPage(apiBaseUrl: string, rootDomain: string): string {
@@ -101,9 +109,13 @@ export function renderLandingPage(apiBaseUrl: string, rootDomain: string): strin
 <meta property="og:description" content="${description}" />
 <meta property="og:url" content="${canonicalUrl}" />
 <meta property="og:locale" content="en_AE" />
-<meta name="twitter:card" content="summary" />
+<meta property="og:image" content="https://${rootDomain}/og-image.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="ServBazaar — The Operating System for Service Companies" />
 <meta name="twitter:description" content="${description}" />
+<meta name="twitter:image" content="https://${rootDomain}/og-image.jpg" />
 ${jsonLd(rootDomain)}
 <style>
   :root { --accent: #036f71; --accent-dark: #024f50; --gold: #d2ad3a; --gold-dark: #a8842a; --ink: #0d2b2b; --muted: #5b6b6a; --cream: #f7f6ec; }
