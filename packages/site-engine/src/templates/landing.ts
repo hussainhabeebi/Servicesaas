@@ -3,6 +3,9 @@
  * by site-engine as a special case before tenant host resolution runs —
  * see index.ts. Not tenant content, so it doesn't touch sites/draft_content
  * the way tenant pages do.
+ *
+ * Testimonials are deliberately left as clearly-marked placeholders, not
+ * fabricated quotes — swap in real ones once there are real customers.
  */
 const VERTICAL_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "cleaning", label: "Cleaning" },
@@ -15,7 +18,7 @@ const VERTICAL_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "generic", label: "Other Service Business" },
 ];
 
-export function renderLandingPage(apiBaseUrl: string): string {
+export function renderLandingPage(apiBaseUrl: string, rootDomain: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -24,25 +27,57 @@ export function renderLandingPage(apiBaseUrl: string): string {
 <title>ServBazaar — The Operating System for Service Companies</title>
 <meta name="description" content="Booking, billing, a website, and a WhatsApp bot for local service businesses — cleaning, salons, repair, tutoring, pet care, fitness, spa & laundry. Starter AED 99, Growth AED 199." />
 <style>
-  :root { --accent: #4F46E5; --ink: #111827; --muted: #6b7280; }
+  :root { --accent: #4F46E5; --accent2: #7C3AED; --ink: #111827; --muted: #6b7280; }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; color: var(--ink); background: #fff; }
-  header { padding: 4rem 1.5rem 3rem; text-align: center; background: linear-gradient(135deg, var(--accent), #111827); color: #fff; }
-  header h1 { margin: 0 0 0.75rem; font-size: clamp(1.75rem, 5vw, 2.75rem); }
-  header p { max-width: 640px; margin: 0 auto; font-size: 1.1rem; opacity: 0.92; }
-  .cta { display: inline-block; margin-top: 1.75rem; padding: 0.95rem 1.8rem; background: #fff; color: var(--accent); border-radius: 999px; text-decoration: none; font-weight: 700; }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; color: var(--ink); background: #fff; overflow-x: hidden; }
+
+  nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); border-bottom: 1px solid #f0f0f2; transition: box-shadow 0.2s; }
+  nav.scrolled { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  nav .brand { font-weight: 800; font-size: 1.1rem; color: var(--ink); text-decoration: none; }
+  nav .links { display: flex; align-items: center; gap: 1.5rem; }
+  nav .links a.nav-link { color: var(--muted); text-decoration: none; font-size: 0.92rem; display: none; }
+  nav button.login { background: none; border: 1px solid #d1d5db; padding: 0.5rem 1.1rem; border-radius: 999px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+  nav a.nav-cta { background: var(--ink); color: #fff; padding: 0.55rem 1.2rem; border-radius: 999px; text-decoration: none; font-weight: 700; font-size: 0.88rem; }
+  @media (min-width: 720px) { nav .links a.nav-link { display: inline; } }
+
+  header { position: relative; padding: 5rem 1.5rem 4rem; text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent2), #111827); background-size: 200% 200%; animation: gradientShift 12s ease infinite; color: #fff; overflow: hidden; }
+  @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  header::before, header::after { content: ""; position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.35; animation: floatBlob 10s ease-in-out infinite; }
+  header::before { width: 280px; height: 280px; background: #fff; top: -80px; left: -60px; }
+  header::after { width: 220px; height: 220px; background: #fbbf24; bottom: -80px; right: -40px; animation-delay: -4s; }
+  @keyframes floatBlob { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-24px) scale(1.08); } }
+  header .inner { position: relative; z-index: 1; }
+  header h1 { margin: 0 0 0.75rem; font-size: clamp(1.9rem, 5vw, 3rem); font-weight: 800; opacity: 0; animation: fadeInUp 0.7s ease forwards; }
+  header p { max-width: 640px; margin: 0 auto; font-size: 1.15rem; opacity: 0; animation: fadeInUp 0.7s ease 0.15s forwards; }
+  header .cta-row { margin-top: 2rem; opacity: 0; animation: fadeInUp 0.7s ease 0.3s forwards; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  .cta { display: inline-block; padding: 0.95rem 1.9rem; background: #fff; color: var(--accent); border-radius: 999px; text-decoration: none; font-weight: 700; transition: transform 0.2s, box-shadow 0.2s; }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+  .cta.ghost { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.6); margin-left: 0.75rem; }
+
   main { max-width: 1040px; margin: 0 auto; padding: 0 1.5rem; }
-  section { margin: 3.5rem 0; }
-  h2 { text-align: center; font-size: 1.75rem; margin-bottom: 0.5rem; }
-  .subhead { text-align: center; color: var(--muted); margin-bottom: 2rem; }
+  section { margin: 5rem 0; }
+  h2 { text-align: center; font-size: 1.8rem; margin-bottom: 0.5rem; }
+  .subhead { text-align: center; color: var(--muted); margin-bottom: 2.5rem; }
+
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
   .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
-  .feature { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.5rem; }
+  .feature { border: 1px solid #e5e7eb; border-radius: 14px; padding: 1.6rem; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
+  .feature:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(79,70,229,0.12); border-color: var(--accent); }
+  .feature .emoji { font-size: 1.6rem; margin-bottom: 0.5rem; }
   .feature h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
   .feature p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
   .verticals { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
-  .chip { background: #f3f4f6; border-radius: 999px; padding: 0.5rem 1rem; font-size: 0.9rem; color: var(--ink); }
+  .chip { background: #f3f4f6; border-radius: 999px; padding: 0.5rem 1.1rem; font-size: 0.9rem; color: var(--ink); transition: background 0.2s, transform 0.2s; }
+  .chip:hover { background: #eef2ff; transform: translateY(-2px); }
+
   .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-  .plan { border: 2px solid #e5e7eb; border-radius: 16px; padding: 2rem; }
+  .plan { border: 2px solid #e5e7eb; border-radius: 18px; padding: 2rem; transition: transform 0.25s, box-shadow 0.25s; }
+  .plan:hover { transform: translateY(-6px); box-shadow: 0 16px 32px rgba(0,0,0,0.08); }
   .plan.growth { border-color: var(--accent); position: relative; }
   .plan .badge { position: absolute; top: -0.8rem; right: 1.5rem; background: var(--accent); color: #fff; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
   .plan h3 { margin: 0 0 0.25rem; font-size: 1.1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
@@ -51,9 +86,18 @@ export function renderLandingPage(apiBaseUrl: string): string {
   .plan ul { list-style: none; padding: 0; margin: 0 0 1.5rem; }
   .plan li { padding: 0.4rem 0; color: #374151; font-size: 0.94rem; }
   .plan li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
-  .plan button { width: 100%; padding: 0.9rem; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; }
+  .plan button { width: 100%; padding: 0.9rem; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; transition: opacity 0.2s; }
+  .plan button:hover { opacity: 0.9; }
   .plan.starter button { background: var(--ink); }
-  #signup { background: #f9fafb; border-radius: 20px; padding: 2.5rem; }
+
+  .testimonials { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+  .testimonial { background: #f9fafb; border-radius: 14px; padding: 1.5rem; border: 1px dashed #d1d5db; }
+  .testimonial .stars { color: #f59e0b; margin-bottom: 0.5rem; }
+  .testimonial p.quote { color: #374151; font-style: italic; margin: 0 0 0.75rem; }
+  .testimonial .who { font-size: 0.85rem; color: var(--muted); }
+  .testimonial-note { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 1.5rem; }
+
+  #signup { background: #f9fafb; border-radius: 22px; padding: 2.5rem; }
   #signup form { max-width: 480px; margin: 0 auto; display: grid; gap: 0.9rem; }
   #signup label { font-size: 0.85rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.3rem; }
   #signup input, #signup select { width: 100%; padding: 0.7rem 0.9rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; }
@@ -61,29 +105,64 @@ export function renderLandingPage(apiBaseUrl: string): string {
   #signup-result { max-width: 480px; margin: 1rem auto 0; text-align: center; font-size: 0.95rem; }
   #signup-result.error { color: #b91c1c; }
   #signup-result.success { color: #15803d; }
-  footer { text-align: center; padding: 3rem 1.5rem; color: var(--muted); font-size: 0.85rem; }
+
+  footer { text-align: center; padding: 3rem 1.5rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid #f0f0f2; }
+  footer .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.25rem; margin-bottom: 1rem; }
+  footer .footer-links a { color: var(--muted); text-decoration: none; }
+  footer .footer-links a:hover { color: var(--ink); }
+  footer .by { font-size: 0.82rem; }
+  footer .by a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17,24,39,0.55); z-index: 100; align-items: center; justify-content: center; padding: 1.5rem; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 16px; padding: 2rem; width: 100%; max-width: 380px; position: relative; animation: fadeInUp 0.25s ease; }
+  .modal h3 { margin-top: 0; }
+  .modal label { font-size: 0.85rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.3rem; margin-top: 0.8rem; }
+  .modal input { width: 100%; padding: 0.7rem 0.9rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; }
+  .modal button[type="submit"] { width: 100%; margin-top: 1.25rem; padding: 0.9rem; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; }
+  .modal .close { position: absolute; top: 0.9rem; right: 1rem; border: none; background: none; font-size: 1.3rem; cursor: pointer; color: var(--muted); }
+  .modal-result { margin-top: 0.9rem; font-size: 0.9rem; text-align: center; }
+  .modal-result.error { color: #b91c1c; }
+  .modal-result.success { color: #15803d; }
 </style>
 </head>
 <body>
+
+<nav id="navbar">
+  <a class="brand" href="/">ServBazaar</a>
+  <div class="links">
+    <a class="nav-link" href="#features">Features</a>
+    <a class="nav-link" href="#pricing">Pricing</a>
+    <a class="nav-link" href="#testimonials">Testimonials</a>
+    <button class="login" type="button" onclick="openLogin()">Log in</button>
+    <a class="nav-cta" href="#signup">Get Started</a>
+  </div>
+</nav>
+
 <header>
-  <h1>The Operating System for Service Companies</h1>
-  <p>Booking, billing, a website, and a WhatsApp bot — all in one place, built for cleaning, salons, repair, tutoring, pet care, fitness, and spa &amp; laundry businesses.</p>
-  <a class="cta" href="#signup">Get Started</a>
+  <div class="inner">
+    <h1>The Operating System for Service Companies</h1>
+    <p>Booking, billing, a website, and a WhatsApp bot — all in one place, built for cleaning, salons, repair, tutoring, pet care, fitness, and spa &amp; laundry businesses.</p>
+    <div class="cta-row">
+      <a class="cta" href="#signup">Get Started Free</a>
+      <a class="cta ghost" href="#pricing">See pricing</a>
+    </div>
+  </div>
 </header>
 
 <main>
-  <section id="features">
+  <section id="features" class="reveal">
     <h2>Everything your business needs</h2>
     <p class="subhead">No separate booking app, invoicing tool, website builder, or WhatsApp number to juggle.</p>
     <div class="features">
-      <div class="feature"><h3>Booking calendar</h3><p>Multi-staff or solo, recurring jobs, reminders, and no double-bookings.</p></div>
-      <div class="feature"><h3>WhatsApp bot</h3><p>Customers book straight from WhatsApp — enquiry, quote, and confirmation, automatically.</p></div>
-      <div class="feature"><h3>Invoicing &amp; VAT</h3><p>Quote to invoice, UAE VAT handled, payment links, and auto-reminders for overdue bills.</p></div>
-      <div class="feature"><h3>Your own website</h3><p>A booking-ready site on your own subdomain — or your own domain on Growth.</p></div>
+      <div class="feature"><div class="emoji">📅</div><h3>Booking calendar</h3><p>Multi-staff or solo, recurring jobs, reminders, and no double-bookings.</p></div>
+      <div class="feature"><div class="emoji">💬</div><h3>WhatsApp bot</h3><p>Customers book straight from WhatsApp — enquiry, quote, and confirmation, automatically.</p></div>
+      <div class="feature"><div class="emoji">🧾</div><h3>Invoicing &amp; VAT</h3><p>Quote to invoice, UAE VAT handled, payment links, and auto-reminders for overdue bills.</p></div>
+      <div class="feature"><div class="emoji">🌐</div><h3>Your own website</h3><p>A booking-ready site on your own subdomain — or your own domain on Growth.</p></div>
     </div>
   </section>
 
-  <section id="verticals">
+  <section id="verticals" class="reveal">
     <h2>Built for your kind of business</h2>
     <div class="verticals">
       ${VERTICAL_OPTIONS.filter((v) => v.value !== "generic")
@@ -92,7 +171,7 @@ export function renderLandingPage(apiBaseUrl: string): string {
     </div>
   </section>
 
-  <section id="pricing">
+  <section id="pricing" class="reveal">
     <h2>Simple pricing</h2>
     <p class="subhead">No setup fees. Cancel anytime.</p>
     <div class="pricing">
@@ -125,7 +204,30 @@ export function renderLandingPage(apiBaseUrl: string): string {
     </div>
   </section>
 
-  <section id="signup">
+  <section id="testimonials" class="reveal">
+    <h2>Loved by service businesses</h2>
+    <p class="subhead">We're just getting started — here's the kind of feedback we're building toward.</p>
+    <div class="testimonials">
+      <div class="testimonial">
+        <div class="stars">★★★★★</div>
+        <p class="quote">"[Your customer's quote goes here once you have your first few reviews.]"</p>
+        <div class="who">— [Business name], [City]</div>
+      </div>
+      <div class="testimonial">
+        <div class="stars">★★★★★</div>
+        <p class="quote">"[Your customer's quote goes here once you have your first few reviews.]"</p>
+        <div class="who">— [Business name], [City]</div>
+      </div>
+      <div class="testimonial">
+        <div class="stars">★★★★★</div>
+        <p class="quote">"[Your customer's quote goes here once you have your first few reviews.]"</p>
+        <div class="who">— [Business name], [City]</div>
+      </div>
+    </div>
+    <p class="testimonial-note">Placeholder cards — swap in real customer quotes as they come in.</p>
+  </section>
+
+  <section id="signup" class="reveal">
     <h2>Get started in minutes</h2>
     <p class="subhead">Tell us about your business — we'll set up your calendar, invoicing, and website instantly.</p>
     <form id="signup-form">
@@ -166,15 +268,106 @@ export function renderLandingPage(apiBaseUrl: string): string {
   </section>
 </main>
 
-<footer>Powered by ServBazaar</footer>
+<footer>
+  <div class="footer-links">
+    <a href="/#features">Features</a>
+    <a href="/#pricing">Pricing</a>
+    <a href="/privacy">Privacy Policy</a>
+    <a href="/terms">Terms of Service</a>
+    <a href="https://admin.${rootDomain}">Admin</a>
+  </div>
+  <div class="by">A product by <a href="https://aiingo.com" target="_blank" rel="noopener">Aiingo</a></div>
+</footer>
+
+<div class="modal-overlay" id="login-overlay">
+  <div class="modal">
+    <button class="close" type="button" onclick="closeLogin()" aria-label="Close">&times;</button>
+    <h3>Log in</h3>
+    <form id="login-form">
+      <label for="login-identifier">Email or phone</label>
+      <input id="login-identifier" name="identifier" required />
+      <label for="login-password">Password</label>
+      <input id="login-password" name="password" type="password" required />
+      <button type="submit">Log in</button>
+    </form>
+    <div class="modal-result" id="login-result"></div>
+  </div>
+</div>
 
 <script>
   var API_BASE = ${JSON.stringify(apiBaseUrl)};
+
+  // Scroll-reveal animations
+  var revealEls = document.querySelectorAll('.reveal');
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  revealEls.forEach(function (el) { observer.observe(el); });
+
+  // Nav shadow on scroll
+  var navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', function () {
+    if (window.scrollY > 8) navbar.classList.add('scrolled');
+    else navbar.classList.remove('scrolled');
+  });
 
   function selectPlan(plan) {
     document.getElementById('plan').value = plan;
     document.getElementById('signup').scrollIntoView({ behavior: 'smooth' });
   }
+
+  function openLogin() {
+    document.getElementById('login-overlay').classList.add('open');
+  }
+  function closeLogin() {
+    document.getElementById('login-overlay').classList.remove('open');
+  }
+  document.getElementById('login-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeLogin();
+  });
+
+  document.getElementById('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var form = e.target;
+    var resultEl = document.getElementById('login-result');
+    var submitBtn = form.querySelector('button[type="submit"]');
+    resultEl.className = 'modal-result';
+    resultEl.textContent = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Logging in…';
+
+    fetch(API_BASE + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: form.identifier.value, password: form.password.value }),
+    })
+      .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+      .then(function (result) {
+        if (!result.ok) {
+          resultEl.className = 'modal-result error';
+          resultEl.textContent = 'Invalid email/phone or password.';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Log in';
+          return;
+        }
+        resultEl.className = 'modal-result success';
+        resultEl.textContent = 'Logged in! Redirecting to your site…';
+        setTimeout(function () {
+          window.location.href = 'https://' + result.data.tenant.subdomain;
+        }, 900);
+      })
+      .catch(function () {
+        resultEl.className = 'modal-result error';
+        resultEl.textContent = 'Could not reach the server — please try again.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Log in';
+      });
+  });
 
   document.getElementById('signup-form').addEventListener('submit', function (e) {
     e.preventDefault();

@@ -5,6 +5,7 @@ import type { AppContext } from "@serviceos/platform";
 import { renderSitePage, type SiteContent } from "./templates/registry";
 import { renderSitemap, renderRobotsTxt } from "./seo";
 import { renderLandingPage } from "./templates/landing";
+import { renderPrivacyPolicy, renderTermsOfService } from "./templates/legal";
 
 const app = new Hono<AppContext>();
 
@@ -13,10 +14,13 @@ const app = new Hono<AppContext>();
 // "unknown tenant host" path.
 app.use("*", async (c, next) => {
   const host = (c.req.header("host") ?? "").split(":")[0]?.toLowerCase() ?? "";
-  if (host === c.env.ROOT_DOMAIN || host === `www.${c.env.ROOT_DOMAIN}`) {
-    return c.html(renderLandingPage(c.env.API_BASE_URL));
+  if (host !== c.env.ROOT_DOMAIN && host !== `www.${c.env.ROOT_DOMAIN}`) {
+    return next();
   }
-  await next();
+  const path = new URL(c.req.url).pathname;
+  if (path === "/privacy") return c.html(renderPrivacyPolicy(c.env.ROOT_DOMAIN));
+  if (path === "/terms") return c.html(renderTermsOfService(c.env.ROOT_DOMAIN));
+  return c.html(renderLandingPage(c.env.API_BASE_URL, c.env.ROOT_DOMAIN));
 });
 
 app.use("*", tenantResolutionMiddleware());
