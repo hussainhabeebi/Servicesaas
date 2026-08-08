@@ -23,6 +23,7 @@ const signupSchema = z.object({
   password: z.string().min(8),
   staffCount: z.number().int().min(1).max(200).default(1),
   locale: z.enum(["en", "ar"]).default("en"),
+  plan: z.enum(["starter", "growth"]).default("starter"),
 });
 
 onboardingRoute.post("/signup", async (c) => {
@@ -42,14 +43,13 @@ onboardingRoute.post("/signup", async (c) => {
   const subdomain = `${slug}.${c.env.ROOT_DOMAIN}`;
 
   const tenantId = crypto.randomUUID();
-  const plan = input.staffCount > 1 ? "starter" : "starter"; // plan is chosen/upgraded separately; default Starter on signup
 
   await db.insert(schema.tenants).values({
     id: tenantId,
     slug,
     business_name: input.businessName,
     vertical,
-    plan,
+    plan: input.plan,
     locale: input.locale,
     subdomain,
   });
@@ -115,7 +115,7 @@ onboardingRoute.post("/signup", async (c) => {
 
   return c.json(
     {
-      tenant: { id: tenantId, slug, subdomain, vertical, plan },
+      tenant: { id: tenantId, slug, subdomain, vertical, plan: input.plan },
       user: { id: ownerId, name: input.ownerName, role: "owner" },
       accessToken: token,
     },

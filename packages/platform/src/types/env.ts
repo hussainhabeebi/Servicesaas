@@ -33,6 +33,7 @@ export interface Env {
   META_APP_ID: string; // public — used by the frontend Embedded Signup widget
   META_EMBEDDED_SIGNUP_CONFIG_ID: string; // public — Meta App's Embedded Signup configuration ID
   GEMINI_MODEL: string; // e.g. "gemini-2.0-flash" — kept configurable since model names change over time
+  API_BASE_URL: string; // e.g. "https://api.yourapp.com" — used by site-engine's landing page signup form; app doesn't need it
 }
 
 export interface AppContext {

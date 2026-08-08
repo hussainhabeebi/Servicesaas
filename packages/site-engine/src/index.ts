@@ -4,8 +4,20 @@ import { createDb, schema, tenantResolutionMiddleware } from "@serviceos/platfor
 import type { AppContext } from "@serviceos/platform";
 import { renderSitePage, type SiteContent } from "./templates/registry";
 import { renderSitemap, renderRobotsTxt } from "./seo";
+import { renderLandingPage } from "./templates/landing";
 
 const app = new Hono<AppContext>();
+
+// The bare apex domain (and www.) is the product's own marketing page, not
+// a tenant — handled before tenant host resolution so it never hits the
+// "unknown tenant host" path.
+app.use("*", async (c, next) => {
+  const host = (c.req.header("host") ?? "").split(":")[0]?.toLowerCase() ?? "";
+  if (host === c.env.ROOT_DOMAIN || host === `www.${c.env.ROOT_DOMAIN}`) {
+    return c.html(renderLandingPage(c.env.API_BASE_URL));
+  }
+  await next();
+});
 
 app.use("*", tenantResolutionMiddleware());
 

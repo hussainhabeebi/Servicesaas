@@ -22,7 +22,8 @@ packages/
   app/          booking/billing/CRM/WhatsApp Worker API (Hono) — the main
                 deployed Worker, plus the BookingCalendarDO Durable Object
   site-engine/  tenant website renderer Worker — resolves hostname -> tenant
-                and serves the published (or draft-preview) site
+                and serves the published (or draft-preview) site; also
+                serves the servbazaar.com marketing/signup landing page
 apps/
   admin/        internal ops dashboard (Vite + React), container-deployed
                 via Coolify — not a Cloudflare Worker
@@ -103,6 +104,12 @@ itself — it has no `wrangler.toml`.
   (`packages/site-engine/src/templates/registry.ts`) with content and
   template kept decoupled, sitemap.xml/robots.txt, booking widget +
   WhatsApp click-to-chat button auto-embedded.
+- **Marketing landing page** (`packages/site-engine/src/templates/landing.ts`):
+  served by site-engine for the bare apex domain (and `www.`), intercepted
+  before tenant host resolution runs. Includes a working signup form that
+  posts straight to `POST /onboarding/signup` — the only tenant-facing UI
+  in this repo; the Embedded Signup widget mentioned above still needs a
+  proper frontend.
 - **Domain module**: Cloudflare for SaaS custom-hostname registration,
   plain-language DNS record translation, status polling
   (`POST /domains/:id/check`), subdomain always active as fallback.
