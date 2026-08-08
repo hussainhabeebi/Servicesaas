@@ -78,22 +78,37 @@ export async function addDomain(env: Env, tenantId: string, rawDomain: string) {
   }
 
   const db = createDb(env.DB);
+
+  // domains.domain is globally unique, so a bare INSERT would throw a raw
+  // DB error on retry after a failed attempt (e.g. Cloudflare secrets
+  // weren't configured yet the first time). Same tenant retrying their own
+  // domain re-registers in place; a different tenant claiming an
+  // already-connected domain is a genuine conflict.
+  const [existing] = await db.select().from(schema.domains).where(eq(schema.domains.domain, domain)).limit(1);
+  if (existing && existing.tenant_id !== tenantId) {
+    return { error: "This domain is already connected to another account" as const };
+  }
+
   const cf = await cfCreateCustomHostname(env, domain);
-  const id = crypto.randomUUID();
+  const id = existing?.id ?? crypto.randomUUID();
   const dnsRecords = cf ? toDnsRecords(cf, domain, env.ROOT_DOMAIN) : [];
-  await db.insert(schema.domains).values({
-    id,
+  const values = {
     tenant_id: tenantId,
     domain,
-    type: "custom",
-    status: cf ? "verifying" : "error",
+    type: "custom" as const,
+    status: cf ? ("verifying" as const) : ("error" as const),
     cf_hostname_id: cf?.id,
     ssl_status: cf?.ssl.status,
     dns_records: cf ? dnsRecords : undefined,
     error_message: cf ? undefined : "Could not register domain with Cloudflare — check CF_API_TOKEN/CF_ZONE_ID config",
     last_checked_at: new Date().toISOString(),
-  });
-  return { id, status: cf ? ("verifying" as const) : ("error" as const), dnsRecords };
+  };
+  if (existing) {
+    await db.update(schema.domains).set(values).where(eq(schema.domains.id, existing.id));
+  } else {
+    await db.insert(schema.domains).values({ id, ...values });
+  }
+  return { id, status: values.status, dnsRecords };
 }
 
 export async function checkDomain(env: Env, tenantId: string, domainId: string) {
