@@ -14,6 +14,7 @@ import { paymentsRoute } from "./routes/payments";
 import { paymentsWebhookRoute } from "./routes/payments-webhook";
 import { leadsRoute } from "./routes/leads";
 import { chatwootWebhookRoute } from "./routes/chatwoot-webhook";
+import { whatsappConnectRoute } from "./routes/whatsapp-connect";
 import { reviewsRoute } from "./routes/reviews";
 import { statsRoute } from "./routes/stats";
 import { domainsRoute } from "./routes/domains";
@@ -54,6 +55,7 @@ api.route("/reviews", reviewsRoute);
 api.route("/stats", statsRoute);
 api.route("/domains", domainsRoute);
 api.route("/sites", sitesRoute);
+api.route("/whatsapp", whatsappConnectRoute);
 app.route("/api", api);
 
 // --- Internal ops routes: guarded by a static admin bearer token, not tenant JWTs ---

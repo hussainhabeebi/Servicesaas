@@ -49,13 +49,16 @@ adminRoute.patch("/tenants/:id/plan", async (c) => {
 });
 
 /**
- * Assigns a tenant's provisioned WhatsApp number to its Chatwoot inbox
- * (spec §1/§5). Ops sets this up once the number is registered and
- * configured as an inbox in Chatwoot: create the inbox, point its webhook
- * at /webhooks/chatwoot?token=<CHATWOOT_WEBHOOK_TOKEN>, then call this with
- * the resulting inbox_id.
+ * Manual override for WhatsApp connection (spec §1/§5) — self-serve via
+ * Meta Embedded Signup (POST /api/whatsapp/connect) is the primary path;
+ * this exists for ops to fix up a tenant's Chatwoot account/inbox/number
+ * directly when self-serve isn't possible or needs correcting.
  */
-const chatwootInboxSchema = z.object({ chatwoot_inbox_id: z.number().int().positive(), whatsapp_number: z.string().min(6) });
+const chatwootInboxSchema = z.object({
+  chatwoot_account_id: z.number().int().positive(),
+  chatwoot_inbox_id: z.number().int().positive(),
+  whatsapp_number: z.string().min(6),
+});
 
 adminRoute.patch("/tenants/:id/chatwoot-inbox", async (c) => {
   const parsed = chatwootInboxSchema.safeParse(await c.req.json());
@@ -63,7 +66,12 @@ adminRoute.patch("/tenants/:id/chatwoot-inbox", async (c) => {
   const db = createDb(c.env.DB);
   await db
     .update(schema.tenants)
-    .set({ chatwoot_inbox_id: parsed.data.chatwoot_inbox_id, whatsapp_number: parsed.data.whatsapp_number, updated_at: new Date().toISOString() })
+    .set({
+      chatwoot_account_id: parsed.data.chatwoot_account_id,
+      chatwoot_inbox_id: parsed.data.chatwoot_inbox_id,
+      whatsapp_number: parsed.data.whatsapp_number,
+      updated_at: new Date().toISOString(),
+    })
     .where(eq(schema.tenants.id, c.req.param("id")));
   return c.json({ ok: true });
 });

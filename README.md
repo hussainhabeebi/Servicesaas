@@ -43,15 +43,30 @@ itself — it has no `wrangler.toml`.
   `.../auth`): subdomain/custom-domain -> tenant_id middleware, HS256 JWT
   (Web Crypto, no Node-only deps), PBKDF2 password hashing.
 - **Chatwoot integration** (`packages/platform/src/whatsapp/chatwoot.ts`):
-  each tenant gets a dedicated WhatsApp number (provisioned by ops) set up
-  as its own inbox on a shared, self-hosted Chatwoot instance. Inbound
-  messages arrive via a single Chatwoot webhook
-  (`/webhooks/chatwoot`), routed to the right tenant by
-  `chatwoot_inbox_id` on the tenant row; outbound replies and proactive
-  sends (invoices, review requests) go through Chatwoot's REST API using
-  one platform-level agent token. Chatwoot doesn't sign its webhook
-  payloads, so a shared secret is embedded in the webhook URL instead
-  (`?token=<CHATWOOT_WEBHOOK_TOKEN>`).
+  WhatsApp is self-serve. Each tenant connects their own number during
+  onboarding via Meta's Embedded Signup widget
+  (`POST /api/whatsapp/connect`, see `routes/whatsapp-connect.ts`), which
+  provisions that tenant a fully isolated Chatwoot **Account** (not a
+  shared account with per-tenant inboxes) using Chatwoot's Platform API,
+  attaches a single platform Agent Bot to it (Chatwoot's supported pattern
+  for one credential acting across many otherwise-isolated accounts), and
+  creates the WhatsApp Cloud inbox from the signup result. Inbound
+  messages arrive via one webhook (`/webhooks/chatwoot`) routed to the
+  right tenant by `chatwoot_inbox_id` (globally unique across the whole
+  Chatwoot instance); every API call also needs the tenant's
+  `chatwoot_account_id` since accounts aren't shared. Chatwoot doesn't
+  sign its webhook payloads, so a shared secret is embedded in the
+  webhook URL instead (`?token=<CHATWOOT_WEBHOOK_TOKEN>`).
+
+  **Not yet built**: the actual frontend widget that hosts Meta's
+  Embedded Signup JS SDK (there's no tenant-facing onboarding UI in this
+  repo yet, only the API). `GET /api/whatsapp/config` returns what such a
+  widget needs (`metaAppId`, `embeddedSignupConfigId`) to initialize.
+  **Worth testing before relying on it**: the exact Chatwoot Platform API
+  payload shapes for account creation, Agent Bot attachment, and the
+  WhatsApp Cloud inbox's `provider_config` for embedded signup — these
+  vary across Chatwoot versions and weren't verified against a live
+  instance.
 - **Payment gateway wrappers**: Razorpay, PhonePe, Telr, Network
   International — each implements a common `PaymentGateway` interface
   (`createPaymentLink` / `verifyCallback`).
@@ -127,9 +142,10 @@ pnpm --filter @serviceos/admin dev          # admin dashboard on :4173
 
 Each Worker needs its secrets set locally (`wrangler secret put <NAME>` or
 a `.dev.vars` file — see `packages/platform/src/types/env.ts` for the full
-list): `JWT_SECRET`, `CHATWOOT_API_TOKEN`, `CHATWOOT_WEBHOOK_TOKEN`,
-`ADMIN_API_TOKEN`, plus whichever payment gateway keys you're testing
-against. `CHATWOOT_BASE_URL` and `CHATWOOT_ACCOUNT_ID` are plain vars in
+list): `JWT_SECRET`, `CHATWOOT_PLATFORM_API_TOKEN`, `CHATWOOT_AGENT_BOT_TOKEN`,
+`CHATWOOT_WEBHOOK_TOKEN`, `ADMIN_API_TOKEN`, plus whichever payment gateway
+keys you're testing against. `CHATWOOT_BASE_URL`, `CHATWOOT_AGENT_BOT_ID`,
+`META_APP_ID`, and `META_EMBEDDED_SIGNUP_CONFIG_ID` are plain vars in
 `wrangler.toml`, not secrets.
 
 ## Deploying
@@ -146,11 +162,15 @@ against. `CHATWOOT_BASE_URL` and `CHATWOOT_ACCOUNT_ID` are plain vars in
    Dockerfile location) for its own build/deploy/preview pipeline, separate
    from the Workers pipeline above. Set the `VITE_API_BASE` build arg to
    your deployed app Worker's URL (e.g. `https://api.servbazaar.com`).
-6. For each tenant's WhatsApp: provision their number, create a
-   corresponding inbox in the shared Chatwoot instance, point that inbox's
-   webhook at `https://api.servbazaar.com/webhooks/chatwoot?token=<CHATWOOT_WEBHOOK_TOKEN>`,
-   then call `PATCH /admin/tenants/:id/chatwoot-inbox` with the inbox ID and
-   the number (E.164) to wire it to that tenant.
+6. One-time Chatwoot setup: create a platform Agent Bot (Chatwoot Platform
+   API or its UI), note its numeric ID (`CHATWOOT_AGENT_BOT_ID`) and access
+   token (`CHATWOOT_AGENT_BOT_TOKEN`), and generate a Super Admin token
+   (`CHATWOOT_PLATFORM_API_TOKEN`) for account creation.
+7. Per-tenant WhatsApp connection is then self-serve via
+   `POST /api/whatsapp/connect` (see the Chatwoot integration section
+   above) — no manual per-tenant Chatwoot setup needed. `PATCH
+   /admin/tenants/:id/chatwoot-inbox` remains as an ops fallback for fixing
+   up a tenant's connection by hand when needed.
 
 ## Design notes worth knowing before extending this
 

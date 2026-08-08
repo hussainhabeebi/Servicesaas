@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
-import { createDb, schema, sendChatwootProactiveMessage, type ChatwootConfig } from "@serviceos/platform";
+import { createDb, schema, sendChatwootProactiveMessage } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { calculateInvoiceTotals, nextInvoiceNumber } from "../lib/vat";
 import { renderInvoicePdf } from "../lib/pdf";
@@ -128,16 +128,16 @@ invoicesRoute.post("/:id/send", async (c) => {
     .set({ status: "sent", pdf_r2_key: r2Key, sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .where(eq(schema.invoices.id, invoiceId));
 
-  const chatwootConfig: ChatwootConfig = { baseUrl: c.env.CHATWOOT_BASE_URL, apiAccessToken: c.env.CHATWOOT_API_TOKEN, accountId: c.env.CHATWOOT_ACCOUNT_ID };
-  const waResult = tenant.chatwoot_inbox_id
-    ? await sendChatwootProactiveMessage(
-        chatwootConfig,
-        tenant.chatwoot_inbox_id,
-        customer.phone,
-        customer.name,
-        `Hi ${customer.name}, here's your invoice ${invoice.invoice_number} from ${tenant.business_name}: ${invoice.currency} ${invoice.total.toFixed(2)}. Total due${invoice.due_date ? ` by ${invoice.due_date}` : ""}.`
-      ).catch((e) => ({ ok: false, error: String(e) }))
-    : { ok: false, error: "No WhatsApp inbox configured for this tenant" };
+  const waResult =
+    tenant.chatwoot_inbox_id && tenant.chatwoot_account_id
+      ? await sendChatwootProactiveMessage(
+          { baseUrl: c.env.CHATWOOT_BASE_URL, apiAccessToken: c.env.CHATWOOT_AGENT_BOT_TOKEN, accountId: tenant.chatwoot_account_id },
+          tenant.chatwoot_inbox_id,
+          customer.phone,
+          customer.name,
+          `Hi ${customer.name}, here's your invoice ${invoice.invoice_number} from ${tenant.business_name}: ${invoice.currency} ${invoice.total.toFixed(2)}. Total due${invoice.due_date ? ` by ${invoice.due_date}` : ""}.`
+        ).catch((e) => ({ ok: false, error: String(e) }))
+      : { ok: false, error: "WhatsApp not connected for this tenant" };
 
   return c.json({ ok: true, r2Key, whatsappSent: waResult.ok });
 });

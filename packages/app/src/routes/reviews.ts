@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
-import { createDb, schema, sendChatwootProactiveMessage, type ChatwootConfig } from "@serviceos/platform";
+import { createDb, schema, sendChatwootProactiveMessage } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 
 /** Auto review-request message post-completion with a direct Google review link (spec §5/§10). */
@@ -21,7 +21,11 @@ reviewsRoute.post("/request", async (c) => {
 
   const [customer] = await db.select().from(schema.customers).where(and(eq(schema.customers.id, parsed.data.customer_id), eq(schema.customers.tenant_id, tenantId))).limit(1);
   if (!customer) return c.json({ error: "Customer not found" }, 404);
-  const [tenant] = await db.select({ chatwoot_inbox_id: schema.tenants.chatwoot_inbox_id }).from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
+  const [tenant] = await db
+    .select({ chatwoot_inbox_id: schema.tenants.chatwoot_inbox_id, chatwoot_account_id: schema.tenants.chatwoot_account_id })
+    .from(schema.tenants)
+    .where(eq(schema.tenants.id, tenantId))
+    .limit(1);
 
   const id = crypto.randomUUID();
   await db.insert(schema.reviews).values({
@@ -33,10 +37,9 @@ reviewsRoute.post("/request", async (c) => {
   });
 
   let sent = false;
-  if (tenant?.chatwoot_inbox_id) {
-    const chatwootConfig: ChatwootConfig = { baseUrl: c.env.CHATWOOT_BASE_URL, apiAccessToken: c.env.CHATWOOT_API_TOKEN, accountId: c.env.CHATWOOT_ACCOUNT_ID };
+  if (tenant?.chatwoot_inbox_id && tenant.chatwoot_account_id) {
     const result = await sendChatwootProactiveMessage(
-      chatwootConfig,
+      { baseUrl: c.env.CHATWOOT_BASE_URL, apiAccessToken: c.env.CHATWOOT_AGENT_BOT_TOKEN, accountId: tenant.chatwoot_account_id },
       tenant.chatwoot_inbox_id,
       customer.phone,
       customer.name,

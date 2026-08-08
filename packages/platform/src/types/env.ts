@@ -10,7 +10,8 @@ export interface Env {
 
   // Secrets
   JWT_SECRET: string;
-  CHATWOOT_API_TOKEN: string; // platform agent token, sends on behalf of any tenant's inbox
+  CHATWOOT_PLATFORM_API_TOKEN: string; // Super Admin token — creates a Chatwoot Account per tenant, nothing else
+  CHATWOOT_AGENT_BOT_TOKEN: string; // one token, added to every tenant's account, used for all messaging
   CHATWOOT_WEBHOOK_TOKEN: string; // shared secret embedded in the Chatwoot webhook URL
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
@@ -28,7 +29,9 @@ export interface Env {
   ENVIRONMENT: "staging" | "production";
   ROOT_DOMAIN: string; // e.g. "yourapp.com" — subdomains are {slug}.yourapp.com
   CHATWOOT_BASE_URL: string; // e.g. "https://app.aiingo.com" — no trailing slash
-  CHATWOOT_ACCOUNT_ID: string;
+  CHATWOOT_AGENT_BOT_ID: string; // numeric ID of the platform Agent Bot, as a string — GET /platform/api/v1/agent_bots to find it
+  META_APP_ID: string; // public — used by the frontend Embedded Signup widget
+  META_EMBEDDED_SIGNUP_CONFIG_ID: string; // public — Meta App's Embedded Signup configuration ID
 }
 
 export interface AppContext {

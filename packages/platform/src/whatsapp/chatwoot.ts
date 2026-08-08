@@ -2,31 +2,47 @@ import { eq } from "drizzle-orm";
 import { createDb, schema } from "../db/client";
 
 /**
- * WhatsApp is transported through a self-hosted Chatwoot instance shared
- * across tenants: each tenant gets a dedicated WhatsApp number provisioned
- * by ops and connected as its own Chatwoot inbox (see
- * admin.ts's PATCH /admin/tenants/:id/chatwoot-inbox). `chatwoot_inbox_id`
- * on the tenant row is the routing key inbound webhooks carry — the
- * equivalent of the old shared-WABA phone_number_id mapping.
+ * WhatsApp is transported through a self-hosted Chatwoot instance, but each
+ * tenant gets its own isolated Chatwoot Account (not a shared account with
+ * per-tenant inboxes) — provisioned automatically the first time a tenant
+ * completes Meta's Embedded Signup during onboarding (see
+ * routes/whatsapp-connect.ts). Two Chatwoot credential types are involved:
  *
- * One platform-level agent API token (CHATWOOT_API_TOKEN) sends on behalf
- * of any inbox in the account — Chatwoot's API is account-scoped, not
- * inbox-scoped, so a single token covers every tenant.
+ * - A Platform API "Super Admin" token (CHATWOOT_PLATFORM_API_TOKEN), used
+ *   only to create new Accounts and attach the platform Agent Bot to them.
+ * - The platform Agent Bot's own access token (CHATWOOT_AGENT_BOT_TOKEN) —
+ *   Chatwoot's supported pattern for a single credential that can act
+ *   (send/receive messages, create inboxes) across every account it's been
+ *   added to, so we don't need a distinct login/token per tenant.
+ *
+ * `chatwoot_inbox_id` on the tenant row is the routing key inbound webhooks
+ * carry (inbox IDs are unique across the whole Chatwoot instance, not just
+ * within an account); `chatwoot_account_id` is required alongside it for
+ * every Account API call, since accounts are no longer shared.
  */
 export interface ChatwootConfig {
   baseUrl: string; // e.g. "https://app.aiingo.com" — no trailing slash
-  apiAccessToken: string;
-  accountId: string;
+  apiAccessToken: string; // the Agent Bot's token, for a specific account it's a member of
+  accountId: number;
 }
 
-export async function resolveTenantByChatwootInboxId(db: D1Database, inboxId: number): Promise<string | null> {
+export interface ChatwootPlatformConfig {
+  baseUrl: string;
+  platformApiToken: string; // Super Admin token — account/agent-bot management only, not messaging
+}
+
+export async function resolveTenantByChatwootInboxId(
+  db: D1Database,
+  inboxId: number
+): Promise<{ tenantId: string; accountId: number | null } | null> {
   const drizzleDb = createDb(db);
   const [row] = await drizzleDb
-    .select({ id: schema.tenants.id })
+    .select({ id: schema.tenants.id, chatwoot_account_id: schema.tenants.chatwoot_account_id })
     .from(schema.tenants)
     .where(eq(schema.tenants.chatwoot_inbox_id, inboxId))
     .limit(1);
-  return row?.id ?? null;
+  if (!row) return null;
+  return { tenantId: row.id, accountId: row.chatwoot_account_id };
 }
 
 /**
@@ -48,6 +64,91 @@ async function chatwootFetch(config: ChatwootConfig, path: string, init?: Reques
     headers: { api_access_token: config.apiAccessToken, "Content-Type": "application/json", ...init?.headers },
   });
 }
+
+async function platformFetch(config: ChatwootPlatformConfig, path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${config.baseUrl}/platform/api/v1${path}`, {
+    ...init,
+    headers: { api_access_token: config.platformApiToken, "Content-Type": "application/json", ...init?.headers },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Account provisioning (Platform API) — run once per tenant, at WhatsApp
+// connect time. NOTE: verify these endpoint shapes against your Chatwoot
+// version before relying on them; Platform API / Agent Bot support has
+// evolved across releases and isn't something this environment could test
+// against a live instance.
+// ---------------------------------------------------------------------------
+
+/** Creates a new, isolated Chatwoot Account for a tenant. */
+export async function createChatwootAccount(config: ChatwootPlatformConfig, tenantName: string): Promise<number | null> {
+  const res = await platformFetch(config, "/accounts", { method: "POST", body: JSON.stringify({ name: tenantName }) });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { id?: number };
+  return json.id ?? null;
+}
+
+/**
+ * Adds the platform Agent Bot to a tenant's new account, so the bot's one
+ * access_token can act on that account without a separate per-tenant login.
+ * agentBotId is the bot's numeric ID (not its token) — fetch once via
+ * GET /platform/api/v1/agent_bots and store as CHATWOOT_AGENT_BOT_ID.
+ */
+export async function addAgentBotToAccount(config: ChatwootPlatformConfig, accountId: number, agentBotId: number): Promise<boolean> {
+  const res = await platformFetch(config, `/accounts/${accountId}/agent_bots`, {
+    method: "POST",
+    body: JSON.stringify({ agent_bot: agentBotId }),
+  });
+  return res.ok;
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp inbox creation via Meta Embedded Signup (regular Account API,
+// authenticated as the Agent Bot now that it's a member of the account)
+// ---------------------------------------------------------------------------
+
+export interface EmbeddedSignupResult {
+  code: string; // Meta OAuth code captured from the embedded signup widget's callback
+  wabaId?: string;
+  phoneNumberId?: string;
+}
+
+/**
+ * Chatwoot's own configured Meta App (its FB_APP_ID/FB_APP_SECRET, not
+ * ours) finishes the Embedded Signup OAuth exchange server-side once we
+ * hand it the code + identifiers captured from the widget.
+ */
+export async function createWhatsAppCloudInbox(
+  config: ChatwootConfig,
+  inboxName: string,
+  signup: EmbeddedSignupResult
+): Promise<{ inboxId: number; phoneNumber?: string } | null> {
+  const res = await chatwootFetch(config, "/inboxes", {
+    method: "POST",
+    body: JSON.stringify({
+      name: inboxName,
+      channel: {
+        type: "whatsapp",
+        provider: "whatsapp_cloud",
+        provider_config: { source: "embedded_signup", code: signup.code, business_account_id: signup.wabaId, phone_number_id: signup.phoneNumberId },
+      },
+    }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { id?: number; phone_number?: string };
+  if (!json.id) return null;
+  return { inboxId: json.id, phoneNumber: json.phone_number };
+}
+
+/** Points the new account's webhook at our inbound handler so message_created events reach /webhooks/chatwoot. */
+export async function registerAccountWebhook(config: ChatwootConfig, webhookUrl: string): Promise<boolean> {
+  const res = await chatwootFetch(config, "/webhooks", { method: "POST", body: JSON.stringify({ url: webhookUrl, subscriptions: ["message_created"] }) });
+  return res.ok;
+}
+
+// ---------------------------------------------------------------------------
+// Messaging
+// ---------------------------------------------------------------------------
 
 /** Replies within an existing conversation — used by the bot when responding to an inbound webhook. */
 export async function sendChatwootReply(

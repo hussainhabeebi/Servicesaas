@@ -28,9 +28,13 @@ export const tenants = sqliteTable(
     custom_domain: text("custom_domain"),
     bot_persona_name: text("bot_persona_name"), // e.g. "Aisha" — persona-based bot naming
     address: text("address"),
-    // WhatsApp is provisioned per tenant (a dedicated number set up as its own
-    // Chatwoot inbox), assigned by ops after signup — see admin.ts.
+    // WhatsApp is self-serve per tenant: each one connects their own number
+    // via Meta's Embedded Signup during onboarding, which provisions a
+    // dedicated Chatwoot Account (not just an inbox) for that tenant — see
+    // routes/whatsapp-connect.ts. chatwoot_account_id is required on every
+    // Chatwoot API call now that accounts aren't shared across tenants.
     whatsapp_number: text("whatsapp_number"), // E.164, for the public wa.me click-to-chat link
+    chatwoot_account_id: integer("chatwoot_account_id"),
     chatwoot_inbox_id: integer("chatwoot_inbox_id"),
     ...timestamps,
   },
