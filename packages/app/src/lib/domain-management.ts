@@ -31,26 +31,41 @@ interface CfCustomHostname {
   ownership_verification?: { type: string; name: string; value: string };
 }
 
-async function cfCreateCustomHostname(env: Env, hostname: string): Promise<CfCustomHostname | null> {
-  if (!env.CF_API_TOKEN || !env.CF_ZONE_ID) return null;
+interface CfApiResponse {
+  success: boolean;
+  result?: CfCustomHostname;
+  errors?: Array<{ code: number; message: string }>;
+}
+
+type CfResult = { ok: true; hostname: CfCustomHostname } | { ok: false; error: string };
+
+/** Surfaces Cloudflare's actual error text (permission, plan, zone mismatch, etc.) instead of a generic guess — this is what actually shows up in the domains UI when something's wrong. */
+async function cfCreateCustomHostname(env: Env, hostname: string): Promise<CfResult> {
+  if (!env.CF_API_TOKEN || !env.CF_ZONE_ID) return { ok: false, error: "CF_API_TOKEN/CF_ZONE_ID are not configured on this environment" };
   const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/custom_hostnames`, {
     method: "POST",
     headers: { Authorization: `Bearer ${env.CF_API_TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ hostname, ssl: { method: "http", type: "dv" } }),
   });
-  if (!res.ok) return null;
-  const json = (await res.json()) as { result: CfCustomHostname };
-  return json.result;
+  const json = (await res.json().catch(() => null)) as CfApiResponse | null;
+  if (!res.ok || !json?.success || !json.result) {
+    const detail = json?.errors?.map((e) => `${e.message} (${e.code})`).join("; ") ?? `HTTP ${res.status}`;
+    return { ok: false, error: `Cloudflare: ${detail}` };
+  }
+  return { ok: true, hostname: json.result };
 }
 
-async function cfGetCustomHostname(env: Env, cfHostnameId: string): Promise<CfCustomHostname | null> {
-  if (!env.CF_API_TOKEN || !env.CF_ZONE_ID) return null;
+async function cfGetCustomHostname(env: Env, cfHostnameId: string): Promise<CfResult> {
+  if (!env.CF_API_TOKEN || !env.CF_ZONE_ID) return { ok: false, error: "CF_API_TOKEN/CF_ZONE_ID are not configured on this environment" };
   const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/custom_hostnames/${cfHostnameId}`, {
     headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` },
   });
-  if (!res.ok) return null;
-  const json = (await res.json()) as { result: CfCustomHostname };
-  return json.result;
+  const json = (await res.json().catch(() => null)) as CfApiResponse | null;
+  if (!res.ok || !json?.success || !json.result) {
+    const detail = json?.errors?.map((e) => `${e.message} (${e.code})`).join("; ") ?? `HTTP ${res.status}`;
+    return { ok: false, error: `Cloudflare: ${detail}` };
+  }
+  return { ok: true, hostname: json.result };
 }
 
 function toDnsRecords(cf: CfCustomHostname, hostname: string, rootDomain: string) {
@@ -91,16 +106,16 @@ export async function addDomain(env: Env, tenantId: string, rawDomain: string) {
 
   const cf = await cfCreateCustomHostname(env, domain);
   const id = existing?.id ?? crypto.randomUUID();
-  const dnsRecords = cf ? toDnsRecords(cf, domain, env.ROOT_DOMAIN) : [];
+  const dnsRecords = cf.ok ? toDnsRecords(cf.hostname, domain, env.ROOT_DOMAIN) : [];
   const values = {
     tenant_id: tenantId,
     domain,
     type: "custom" as const,
-    status: cf ? ("verifying" as const) : ("error" as const),
-    cf_hostname_id: cf?.id,
-    ssl_status: cf?.ssl.status,
-    dns_records: cf ? dnsRecords : undefined,
-    error_message: cf ? undefined : "Could not register domain with Cloudflare — check CF_API_TOKEN/CF_ZONE_ID config",
+    status: cf.ok ? ("verifying" as const) : ("error" as const),
+    cf_hostname_id: cf.ok ? cf.hostname.id : undefined,
+    ssl_status: cf.ok ? cf.hostname.ssl.status : undefined,
+    dns_records: cf.ok ? dnsRecords : undefined,
+    error_message: cf.ok ? undefined : cf.error,
     last_checked_at: new Date().toISOString(),
   };
   if (existing) {
@@ -118,16 +133,16 @@ export async function checkDomain(env: Env, tenantId: string, domainId: string) 
   if (!domain.cf_hostname_id) return { status: "error" as const };
 
   const cf = await cfGetCustomHostname(env, domain.cf_hostname_id);
-  if (!cf) {
-    await db.update(schema.domains).set({ status: "error", error_message: "Cloudflare lookup failed", last_checked_at: new Date().toISOString() }).where(eq(schema.domains.id, domain.id));
+  if (!cf.ok) {
+    await db.update(schema.domains).set({ status: "error", error_message: cf.error, last_checked_at: new Date().toISOString() }).where(eq(schema.domains.id, domain.id));
     return { status: "error" as const };
   }
 
-  const status = cf.status === "active" && cf.ssl.status === "active" ? "active" : "verifying";
+  const status = cf.hostname.status === "active" && cf.hostname.ssl.status === "active" ? "active" : "verifying";
   await db
     .update(schema.domains)
-    .set({ status, ssl_status: cf.ssl.status, dns_records: toDnsRecords(cf, domain.domain, env.ROOT_DOMAIN), last_checked_at: new Date().toISOString(), error_message: undefined })
+    .set({ status, ssl_status: cf.hostname.ssl.status, dns_records: toDnsRecords(cf.hostname, domain.domain, env.ROOT_DOMAIN), last_checked_at: new Date().toISOString(), error_message: undefined })
     .where(eq(schema.domains.id, domain.id));
 
-  return { status, sslStatus: cf.ssl.status };
+  return { status, sslStatus: cf.hostname.ssl.status };
 }
