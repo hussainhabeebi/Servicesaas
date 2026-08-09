@@ -10,6 +10,7 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
   const [form, setForm] = useState<SiteContent>({});
   const [domains, setDomains] = useState<Domain[]>([]);
   const [newDomain, setNewDomain] = useState("");
+  const [domainMode, setDomainMode] = useState<"manual" | "custom">("manual");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -48,7 +49,11 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
     if (!newDomain.trim()) return;
     setBusy(true);
     try {
-      await api.addTenantDomain(tenantId, newDomain.trim());
+      if (domainMode === "manual") {
+        await api.addTenantManualDomain(tenantId, newDomain.trim());
+      } else {
+        await api.addTenantDomain(tenantId, newDomain.trim());
+      }
       setNewDomain("");
       load();
     } finally {
@@ -60,6 +65,17 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
     setBusy(true);
     try {
       await api.checkTenantDomain(tenantId, domainId);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function activateDomain(domainId: string) {
+    if (!confirm("Mark this domain as active? Only do this once nameservers/DNS/Workers Route are actually set up in Cloudflare.")) return;
+    setBusy(true);
+    try {
+      await api.activateTenantManualDomain(tenantId, domainId);
       load();
     } finally {
       setBusy(false);
@@ -91,6 +107,16 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
       )}
 
       <h3 style={{ marginTop: "2rem", fontSize: "1rem" }}>Domains</h3>
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem", fontSize: "0.8rem" }}>
+        <label style={{ display: "flex", gap: "0.35rem", alignItems: "center", cursor: "pointer" }}>
+          <input type="radio" checked={domainMode === "manual"} onChange={() => setDomainMode("manual")} />
+          Move to Cloudflare (free)
+        </label>
+        <label style={{ display: "flex", gap: "0.35rem", alignItems: "center", cursor: "pointer" }}>
+          <input type="radio" checked={domainMode === "custom"} onChange={() => setDomainMode("custom")} />
+          Keep at current registrar
+        </label>
+      </div>
       <form onSubmit={addDomain} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
         <input style={inputStyle} placeholder="yourbusiness.com" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} />
         <button type="submit" disabled={busy}>
@@ -100,7 +126,7 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
       {domains.map((d) => (
         <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0", borderBottom: "1px solid #f3f4f6", fontSize: "0.85rem" }}>
           <span>
-            {d.domain} — <span style={{ color: "#6b7280" }}>{d.status}</span>
+            {d.domain} — <span style={{ color: "#6b7280" }}>{d.status === "manual_pending" ? "setup in progress" : d.status}</span>
             {d.error_message && <span style={{ color: "#b91c1c" }}> ({d.error_message})</span>}
           </span>
           {d.type === "custom" && d.status !== "active" && (
@@ -108,9 +134,20 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
               Check status
             </button>
           )}
+          {d.type === "manual" && d.status === "manual_pending" && (
+            <button disabled={busy} onClick={() => activateDomain(d.id)} style={{ fontSize: "0.78rem" }}>
+              Mark as active
+            </button>
+          )}
         </div>
       ))}
       {domains.length === 0 && <p style={{ color: "#6b7280", fontSize: "0.85rem" }}>No domains yet.</p>}
+      {domains.some((d) => d.type === "manual" && d.status === "manual_pending") && (
+        <p style={{ color: "#6b7280", fontSize: "0.78rem", marginTop: "0.5rem" }}>
+          Manual setup: add the domain as its own zone in Cloudflare, switch its nameservers at the registrar, then add A records (@ and www → 192.0.2.1, proxied)
+          and a Workers Route to site-engine in that new zone. Click "Mark as active" once it's live.
+        </p>
+      )}
     </div>
   );
 }

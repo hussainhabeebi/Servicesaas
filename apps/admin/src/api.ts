@@ -98,8 +98,8 @@ export interface DnsRecord {
 export interface Domain {
   id: string;
   domain: string;
-  type: "subdomain" | "custom";
-  status: "pending" | "verifying" | "active" | "error";
+  type: "subdomain" | "custom" | "manual";
+  status: "pending" | "verifying" | "active" | "error" | "manual_pending";
   error_message: string | null;
   last_checked_at: string | null;
 }
@@ -131,4 +131,8 @@ export const api = {
     request<{ id: string; status: string; dnsRecords: DnsRecord[] }>(`/admin/tenants/${tenantId}/domains`, { method: "POST", body: JSON.stringify({ domain }) }),
   checkTenantDomain: (tenantId: string, domainId: string) =>
     request<{ status: string }>(`/admin/tenants/${tenantId}/domains/${domainId}/check`, { method: "POST" }),
+  addTenantManualDomain: (tenantId: string, domain: string) =>
+    request<{ id: string; status: string }>(`/admin/tenants/${tenantId}/domains/manual`, { method: "POST", body: JSON.stringify({ domain }) }),
+  activateTenantManualDomain: (tenantId: string, domainId: string) =>
+    request<{ status: string }>(`/admin/tenants/${tenantId}/domains/${domainId}/activate`, { method: "POST" }),
 };

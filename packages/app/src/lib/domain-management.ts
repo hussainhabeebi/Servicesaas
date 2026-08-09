@@ -126,6 +126,55 @@ export async function addDomain(env: Env, tenantId: string, rawDomain: string) {
   return { id, status: values.status, dnsRecords };
 }
 
+/**
+ * Free alternative to the Cloudflare-for-SaaS flow above: the tenant points
+ * their domain's nameservers straight at Cloudflare (making it its own zone)
+ * and DNS + a Workers Route get set up by hand in that new zone — no
+ * CF_API_TOKEN/CF_ZONE_ID call needed, since tenantResolutionMiddleware
+ * matches on the `domains` row alone once traffic actually arrives. This
+ * just registers the row and leaves it in 'manual_pending' until someone
+ * confirms setup is done (markManualDomainActive).
+ */
+export async function addManualDomain(env: Env, tenantId: string, rawDomain: string) {
+  const domain = normalizeHostname(rawDomain);
+  if (!domain) {
+    return { error: "Not a valid domain — enter just the hostname, e.g. yourbusiness.com (no https:// or trailing slash)" as const };
+  }
+
+  const db = createDb(env.DB);
+  const [existing] = await db.select().from(schema.domains).where(eq(schema.domains.domain, domain)).limit(1);
+  if (existing && existing.tenant_id !== tenantId) {
+    return { error: "This domain is already connected to another account" as const };
+  }
+
+  const values = {
+    tenant_id: tenantId,
+    domain,
+    type: "manual" as const,
+    status: "manual_pending" as const,
+    cf_hostname_id: undefined,
+    ssl_status: undefined,
+    dns_records: undefined,
+    error_message: undefined,
+    last_checked_at: new Date().toISOString(),
+  };
+  const id = existing?.id ?? crypto.randomUUID();
+  if (existing) {
+    await db.update(schema.domains).set(values).where(eq(schema.domains.id, existing.id));
+  } else {
+    await db.insert(schema.domains).values({ id, ...values });
+  }
+  return { id, status: values.status };
+}
+
+/** Tenant/ops confirm they've pointed nameservers at Cloudflare and set up DNS + the Workers Route — there's nothing to poll via API, so this is a manual flip rather than an automated check. */
+export async function markManualDomainActive(db: ReturnType<typeof createDb>, tenantId: string, domainId: string) {
+  const [domain] = await db.select().from(schema.domains).where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenant_id, tenantId))).limit(1);
+  if (!domain || domain.type !== "manual") return null;
+  await db.update(schema.domains).set({ status: "active", last_checked_at: new Date().toISOString() }).where(eq(schema.domains.id, domainId));
+  return { status: "active" as const };
+}
+
 export async function checkDomain(env: Env, tenantId: string, domainId: string) {
   const db = createDb(env.DB);
   const [domain] = await db.select().from(schema.domains).where(and(eq(schema.domains.id, domainId), eq(schema.domains.tenant_id, tenantId))).limit(1);

@@ -113,7 +113,7 @@ export const adminAuditLog = sqliteTable(
   {
     id: id(),
     admin_user_id: text("admin_user_id").notNull(),
-    action: text("action").notNull(), // reset_tenant_password|impersonate_tenant|edit_tenant_site|publish_tenant_site|add_tenant_domain
+    action: text("action").notNull(), // reset_tenant_password|impersonate_tenant|edit_tenant_site|publish_tenant_site|add_tenant_domain|activate_tenant_domain
     target_tenant_id: text("target_tenant_id"),
     detail: text("detail"),
     created_at: timestamps.created_at,
@@ -457,8 +457,8 @@ export const domains = sqliteTable(
     id: id(),
     tenant_id: text("tenant_id").notNull(),
     domain: text("domain").notNull(),
-    type: text("type").notNull().default("subdomain"), // subdomain|custom
-    status: text("status").notNull().default("pending"), // pending|verifying|active|error
+    type: text("type").notNull().default("subdomain"), // subdomain|custom|manual
+    status: text("status").notNull().default("pending"), // pending|verifying|active|error|manual_pending
     cf_hostname_id: text("cf_hostname_id"),
     ssl_status: text("ssl_status"),
     dns_records: text("dns_records", { mode: "json" }).$type<Array<{ type: string; name: string; value: string }>>(),

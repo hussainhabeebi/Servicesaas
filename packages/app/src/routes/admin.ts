@@ -6,7 +6,7 @@ import type { AppContext } from "@serviceos/platform";
 import { generateTempPassword } from "../lib/temp-password";
 import { clearedLockoutState } from "../lib/lockout";
 import { getSite, updateSite, publishSite } from "../lib/site-management";
-import { listDomains, addDomain, checkDomain } from "../lib/domain-management";
+import { listDomains, addDomain, addManualDomain, markManualDomainActive, checkDomain } from "../lib/domain-management";
 
 /** Cross-tenant ops endpoints for the internal /admin dashboard. Callers must hold a valid admin JWT (see index.ts wiring). */
 export const adminRoute = new Hono<AppContext>();
@@ -231,5 +231,42 @@ adminRoute.post("/tenants/:id/domains", async (c) => {
 adminRoute.post("/tenants/:id/domains/:domainId/check", async (c) => {
   const result = await checkDomain(c.env, c.req.param("id"), c.req.param("domainId"));
   if (!result) return c.json({ error: "Not found" }, 404);
+  return c.json(result);
+});
+
+/** Free path: ops registers a domain the tenant is moving to Cloudflare directly (nameserver switch), instead of the Cloudflare-for-SaaS Custom Hostname flow. */
+adminRoute.post("/tenants/:id/domains/manual", async (c) => {
+  const parsed = domainAddSchema.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
+  const tenantId = c.req.param("id");
+  const result = await addManualDomain(c.env, tenantId, parsed.data.domain);
+  if ("error" in result) return c.json(result, 400);
+
+  await createDb(c.env.DB)
+    .insert(schema.adminAuditLog)
+    .values({
+      id: crypto.randomUUID(),
+      admin_user_id: c.get("adminUserId")!,
+      action: "add_tenant_domain",
+      target_tenant_id: tenantId,
+      detail: `${parsed.data.domain} (manual/zone-transfer)`,
+    });
+  return c.json(result, 201);
+});
+
+adminRoute.post("/tenants/:id/domains/:domainId/activate", async (c) => {
+  const tenantId = c.req.param("id");
+  const result = await markManualDomainActive(createDb(c.env.DB), tenantId, c.req.param("domainId"));
+  if (!result) return c.json({ error: "Not found" }, 404);
+
+  await createDb(c.env.DB)
+    .insert(schema.adminAuditLog)
+    .values({
+      id: crypto.randomUUID(),
+      admin_user_id: c.get("adminUserId")!,
+      action: "activate_tenant_domain",
+      target_tenant_id: tenantId,
+      detail: c.req.param("domainId"),
+    });
   return c.json(result);
 });

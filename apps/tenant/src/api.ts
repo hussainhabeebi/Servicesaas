@@ -188,8 +188,8 @@ export interface DnsRecord {
 export interface Domain {
   id: string;
   domain: string;
-  type: "subdomain" | "custom";
-  status: "pending" | "verifying" | "active" | "error";
+  type: "subdomain" | "custom" | "manual";
+  status: "pending" | "verifying" | "active" | "error" | "manual_pending";
   ssl_status: string | null;
   dns_records: DnsRecord[] | null;
   error_message: string | null;
@@ -277,6 +277,8 @@ export const api = {
   domains: () => request<{ domains: Domain[] }>("/api/domains"),
   addDomain: (domain: string) => request<{ id: string; status: string; dnsRecords: DnsRecord[] }>("/api/domains", { method: "POST", body: JSON.stringify({ domain }) }),
   checkDomain: (id: string) => request<{ status: string; sslStatus?: string }>(`/api/domains/${id}/check`, { method: "POST" }),
+  addManualDomain: (domain: string) => request<{ id: string; status: string }>("/api/domains/manual", { method: "POST", body: JSON.stringify({ domain }) }),
+  activateManualDomain: (id: string) => request<{ status: string }>(`/api/domains/${id}/activate`, { method: "POST" }),
 
   whatsappConfig: () => request<{ metaAppId: string | null; embeddedSignupConfigId: string | null }>("/api/whatsapp/config"),
   whatsappStatus: () => request<{ connected: boolean; whatsappNumber: string | null; onboardingType: "coexistence" | "new_number" | null }>("/api/whatsapp/status"),

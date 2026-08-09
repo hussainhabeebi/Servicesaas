@@ -191,6 +191,21 @@ itself — it has no `wrangler.toml`.
   admin panel's tenant detail page (support override, audit-logged as
   `edit_tenant_site`/`publish_tenant_site`/`add_tenant_domain`) — one
   backend, two UIs, so they can never drift out of sync with each other.
+- **Free custom-domain path (`domains.type = 'manual'`)**: an alternative to
+  the Cloudflare for SaaS Custom Hostname flow above, which needs the
+  account's Fallback Origin configured and can gate on plan/quota. Here the
+  tenant's domain becomes its own zone on Cloudflare — nameservers move to
+  Cloudflare at the registrar, then an `A` record (`192.0.2.1`, proxied) plus
+  a Workers Route to `site-engine` are added directly in that zone, which
+  gets Universal SSL automatically with no API token needed. This is a
+  manual, one-time-per-domain setup rather than something the app can drive
+  via API, so `addManualDomain`/`markManualDomainActive` just register the
+  row (`status: 'manual_pending'`) and let the tenant or ops flip it to
+  `active` once they've verified it resolves — `tenantResolutionMiddleware`
+  matches on the `domains` row alone, regardless of how the domain got
+  pointed there. Both dashboards default to this path and show the setup
+  steps inline; audit-logged on the admin side as
+  `add_tenant_domain`/`activate_tenant_domain`.
 - **Reporting**: `daily_stats` rollup (scheduled Worker cron, 00:00
   Asia/Dubai), a "Today" endpoint for the home screen (today's bookings +
   money in/owed), and a cash-flow forecast (confirmed bookings due in the
