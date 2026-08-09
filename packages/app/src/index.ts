@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { AppContext } from "@serviceos/platform";
-import { tenantResolutionMiddleware, requireAuth, requireAdminAuth } from "@serviceos/platform";
+import { tenantResolutionMiddleware, publicSiteResolutionMiddleware, requireAuth, requireAdminAuth } from "@serviceos/platform";
 
 import { onboardingRoute } from "./routes/onboarding";
 import { authRoute } from "./routes/auth";
@@ -45,9 +45,12 @@ app.route("/auth", authRoute);
 app.route("/webhooks/chatwoot", chatwootWebhookRoute);
 app.route("/webhooks/payments", paymentsWebhookRoute);
 
-// --- Public storefront routes: tenant resolved from Host, no login ---------
+// --- Public storefront routes: no login. Tenant resolved from X-Site-Host
+// (the browser's own window.location.host on the tenant's site), falling
+// back to Host — this API worker lives on a different host than the sites
+// that call it, so the real Host header here is never the storefront's.
 const publicApp = new Hono<AppContext>();
-publicApp.use("*", tenantResolutionMiddleware());
+publicApp.use("*", publicSiteResolutionMiddleware());
 publicApp.route("/", publicRoute);
 app.route("/public", publicApp);
 

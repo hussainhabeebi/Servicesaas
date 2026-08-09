@@ -206,6 +206,36 @@ itself — it has no `wrangler.toml`.
   pointed there. Both dashboards default to this path and show the setup
   steps inline; audit-logged on the admin side as
   `add_tenant_domain`/`activate_tenant_domain`.
+- **Tenant sites redesigned as installable, bookable mini-apps**
+  (`site-engine/src/templates/registry.ts`): previously a plain content
+  page with a "Book Now" anchor link and a WhatsApp button; now matches the
+  marketing landing page's visual language (sticky nav, gradient hero,
+  scroll-reveal sections, per-vertical accent theme) and adds:
+  - **A real booking flow.** `/public/bookings` (spec §8) already existed
+    with nothing calling it — the site now has a bottom-sheet booking modal
+    (service → date/time → contact info) that posts straight to it, with
+    live 409/validation error handling and a deposit-aware confirmation
+    screen. Since site-engine (the tenant's own host) and the API worker
+    (`api.{rootDomain}`) are different origins, `tenantResolutionMiddleware`'s
+    Host-header lookup can't work for this cross-origin call — added
+    `publicSiteResolutionMiddleware` (`platform/tenant/resolve.ts`), which
+    resolves the tenant from an `X-Site-Host` header the widget sets to
+    `window.location.host` instead. Only used by the already-unauthenticated
+    `/public/*` routes, so this trusts a client-supplied hostname no more
+    than Host itself already is in that context.
+  - **A sticky app-style action bar** (call / WhatsApp / Book Now) always
+    reachable on mobile, mirroring how native service-booking apps keep
+    their primary action pinned rather than requiring a scroll back up.
+  - **Installable as a PWA**, independently per tenant (own name/icon/theme,
+    since each tenant site runs on its own origin — subdomain or custom
+    domain — which is what gives it its own install prompt and service
+    worker scope). `GET /manifest.webmanifest` is generated per-request from
+    the tenant's own content (`site-engine/src/pwa.ts`); `GET /sw.js` is a
+    small network-first-with-cache-fallback worker (no static asset
+    pipeline to precache, since these are server-rendered pages); a custom
+    install banner listens for `beforeinstallprompt`. `icon-192.png` /
+    `icon-512.png` serve the platform's mark as a fallback when a tenant
+    hasn't uploaded their own logo yet.
 - **Reporting**: `daily_stats` rollup (scheduled Worker cron, 00:00
   Asia/Dubai), a "Today" endpoint for the home screen (today's bookings +
   money in/owed), and a cash-flow forecast (confirmed bookings due in the
