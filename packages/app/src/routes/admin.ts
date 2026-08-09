@@ -207,13 +207,13 @@ adminRoute.get("/tenants/:id/domains", async (c) => {
   return c.json({ domains });
 });
 
-const domainAddSchema = z.object({ domain: z.string().min(3) });
+const domainAddSchema = z.object({ domain: z.string().min(3), mode: z.enum(["cname", "zone"]).optional() });
 
 adminRoute.post("/tenants/:id/domains", async (c) => {
   const parsed = domainAddSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const tenantId = c.req.param("id");
-  const result = await addDomain(c.env, tenantId, parsed.data.domain);
+  const result = await addDomain(c.env, tenantId, parsed.data.domain, parsed.data.mode);
   if ("error" in result) return c.json(result, 400);
 
   await createDb(c.env.DB)
@@ -223,7 +223,7 @@ adminRoute.post("/tenants/:id/domains", async (c) => {
       admin_user_id: c.get("adminUserId")!,
       action: "add_tenant_domain",
       target_tenant_id: tenantId,
-      detail: parsed.data.domain,
+      detail: `${parsed.data.domain}${parsed.data.mode === "zone" ? " (zone)" : ""}`,
     });
   return c.json(result, 201);
 });

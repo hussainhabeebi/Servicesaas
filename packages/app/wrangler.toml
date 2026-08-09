@@ -58,6 +58,8 @@ crons = ["0 20 * * *"]
 
 # Secrets (JWT_SECRET, CHATWOOT_PLATFORM_API_TOKEN, CHATWOOT_AGENT_BOT_TOKEN,
 # CHATWOOT_WEBHOOK_TOKEN, GEMINI_API_KEY, RAZORPAY_*, PHONEPE_*, TELR_*,
-# NETWORK_INTL_*, CF_API_TOKEN, CF_ZONE_ID, ADMIN_API_TOKEN) are set
-# per-environment via `wrangler secret put <NAME> --env <staging|production>`,
-# never committed here.
+# NETWORK_INTL_*, CF_API_TOKEN, CF_ZONE_ID, CF_ACCOUNT_ID, ADMIN_API_TOKEN)
+# are set per-environment via `wrangler secret put <NAME> --env <staging|production>`,
+# never committed here. CF_ACCOUNT_ID is only needed for the "zone" custom
+# domain mode (packages/app/src/lib/domain-management.ts) — the "cname"
+# mode (Cloudflare for SaaS custom_hostnames) only needs CF_API_TOKEN/CF_ZONE_ID.

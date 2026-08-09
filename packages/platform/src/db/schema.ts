@@ -457,9 +457,11 @@ export const domains = sqliteTable(
     id: id(),
     tenant_id: text("tenant_id").notNull(),
     domain: text("domain").notNull(),
-    type: text("type").notNull().default("subdomain"), // subdomain|custom
+    type: text("type").notNull().default("subdomain"), // subdomain|custom|zone
     status: text("status").notNull().default("pending"), // pending|verifying|active|error
-    cf_hostname_id: text("cf_hostname_id"),
+    cf_hostname_id: text("cf_hostname_id"), // set for type='custom' (Cloudflare for SaaS custom_hostnames)
+    cf_zone_id: text("cf_zone_id"), // set for type='zone' (domain delegated to Cloudflare as its own zone)
+    name_servers: text("name_servers", { mode: "json" }).$type<string[]>(), // type='zone' only — what the tenant must set at their registrar
     ssl_status: text("ssl_status"),
     dns_records: text("dns_records", { mode: "json" }).$type<Array<{ type: string; name: string; value: string }>>(),
     error_message: text("error_message"),

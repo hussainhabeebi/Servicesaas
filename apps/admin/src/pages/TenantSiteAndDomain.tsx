@@ -10,6 +10,7 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
   const [form, setForm] = useState<SiteContent>({});
   const [domains, setDomains] = useState<Domain[]>([]);
   const [newDomain, setNewDomain] = useState("");
+  const [mode, setMode] = useState<"cname" | "zone">("cname");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -48,7 +49,7 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
     if (!newDomain.trim()) return;
     setBusy(true);
     try {
-      await api.addTenantDomain(tenantId, newDomain.trim());
+      await api.addTenantDomain(tenantId, newDomain.trim(), mode);
       setNewDomain("");
       load();
     } finally {
@@ -91,19 +92,34 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
       )}
 
       <h3 style={{ marginTop: "2rem", fontSize: "1rem" }}>Domains</h3>
-      <form onSubmit={addDomain} style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-        <input style={inputStyle} placeholder="yourbusiness.com" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} />
-        <button type="submit" disabled={busy}>
-          Add
-        </button>
+      <form onSubmit={addDomain} style={{ marginBottom: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <input style={inputStyle} placeholder="yourbusiness.com" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} />
+          <button type="submit" disabled={busy}>
+            Add
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: "1rem", marginTop: "0.4rem", fontSize: "0.78rem" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", cursor: "pointer" }}>
+            <input type="radio" name="admin-domain-mode" checked={mode === "cname"} onChange={() => setMode("cname")} />
+            CNAME (keep existing DNS)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", cursor: "pointer" }}>
+            <input type="radio" name="admin-domain-mode" checked={mode === "zone"} onChange={() => setMode("zone")} />
+            Zone (move nameservers to Cloudflare)
+          </label>
+        </div>
       </form>
       {domains.map((d) => (
         <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.4rem 0", borderBottom: "1px solid #f3f4f6", fontSize: "0.85rem" }}>
           <span>
             {d.domain} — <span style={{ color: "#6b7280" }}>{d.status}</span>
             {d.error_message && <span style={{ color: "#b91c1c" }}> ({d.error_message})</span>}
+            {d.type === "zone" && d.status !== "active" && d.name_servers && d.name_servers.length > 0 && (
+              <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>NS: {d.name_servers.join(", ")}</div>
+            )}
           </span>
-          {d.type === "custom" && d.status !== "active" && (
+          {(d.type === "custom" || d.type === "zone") && d.status !== "active" && (
             <button disabled={busy} onClick={() => checkDomain(d.id)} style={{ fontSize: "0.78rem" }}>
               Check status
             </button>

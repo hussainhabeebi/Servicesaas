@@ -191,6 +191,19 @@ itself — it has no `wrangler.toml`.
   admin panel's tenant detail page (support override, audit-logged as
   `edit_tenant_site`/`publish_tenant_site`/`add_tenant_domain`) — one
   backend, two UIs, so they can never drift out of sync with each other.
+- **Full-zone custom domain mode** (`domains.type = 'zone'`,
+  `lib/domain-management.ts`): alongside the original Cloudflare for SaaS
+  CNAME flow, a tenant can instead delegate their domain's nameservers to
+  Cloudflare — we create a real zone for it (`CF_ACCOUNT_ID` + `CF_API_TOKEN`
+  with Zone:Edit/DNS:Edit), the tenant points their registrar's nameservers
+  at what Cloudflare assigns, and once the zone goes active we add a proxied
+  CNAME to the same `hosted.{ROOT_DOMAIN}` fallback origin the CNAME flow
+  uses (orange-to-orange chaining preserves the original Host header, so
+  tenant resolution middleware still matches). More reliable than the
+  fallback-origin CNAME path since Cloudflare terminates SSL and edge-routes
+  the domain directly instead of relying on `custom_hostnames` validation —
+  offered as a choice (`mode: "cname" | "zone"`) on both the tenant Domain
+  page and the admin support tool, not a replacement for the CNAME path.
 - **Reporting**: `daily_stats` rollup (scheduled Worker cron, 00:00
   Asia/Dubai), a "Today" endpoint for the home screen (today's bookings +
   money in/owed), and a cash-flow forecast (confirmed bookings due in the

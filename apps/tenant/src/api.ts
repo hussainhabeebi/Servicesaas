@@ -188,10 +188,11 @@ export interface DnsRecord {
 export interface Domain {
   id: string;
   domain: string;
-  type: "subdomain" | "custom";
+  type: "subdomain" | "custom" | "zone";
   status: "pending" | "verifying" | "active" | "error";
   ssl_status: string | null;
   dns_records: DnsRecord[] | null;
+  name_servers: string[] | null;
   error_message: string | null;
   last_checked_at: string | null;
 }
@@ -275,7 +276,8 @@ export const api = {
   rollbackSiteVersion: (id: string) => request(`/api/sites/versions/${id}/rollback`, { method: "POST" }),
 
   domains: () => request<{ domains: Domain[] }>("/api/domains"),
-  addDomain: (domain: string) => request<{ id: string; status: string; dnsRecords: DnsRecord[] }>("/api/domains", { method: "POST", body: JSON.stringify({ domain }) }),
+  addDomain: (domain: string, mode?: "cname" | "zone") =>
+    request<{ id: string; status: string; dnsRecords: DnsRecord[]; nameServers: string[] }>("/api/domains", { method: "POST", body: JSON.stringify({ domain, mode }) }),
   checkDomain: (id: string) => request<{ status: string; sslStatus?: string }>(`/api/domains/${id}/check`, { method: "POST" }),
 
   whatsappConfig: () => request<{ metaAppId: string | null; embeddedSignupConfigId: string | null }>("/api/whatsapp/config"),

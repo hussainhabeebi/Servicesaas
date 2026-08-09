@@ -21,8 +21,9 @@ export interface Env {
   TELR_AUTH_KEY?: string;
   NETWORK_INTL_MERCHANT_ID?: string;
   NETWORK_INTL_API_KEY?: string;
-  CF_API_TOKEN?: string; // Cloudflare for SaaS custom hostnames API
-  CF_ZONE_ID?: string;
+  CF_API_TOKEN?: string; // Cloudflare for SaaS custom hostnames API, plus zone creation/DNS below
+  CF_ZONE_ID?: string; // our own zone (ROOT_DOMAIN) — where custom_hostnames for type='custom' domains live
+  CF_ACCOUNT_ID?: string; // required to create a new zone for type='zone' domains (full nameserver delegation)
   ADMIN_API_TOKEN: string; // bootstrap-only now — provisions the first admin_users account (routes/admin-bootstrap.ts), not day-to-day /admin/* access
 
   // Vars

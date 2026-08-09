@@ -98,8 +98,9 @@ export interface DnsRecord {
 export interface Domain {
   id: string;
   domain: string;
-  type: "subdomain" | "custom";
+  type: "subdomain" | "custom" | "zone";
   status: "pending" | "verifying" | "active" | "error";
+  name_servers: string[] | null;
   error_message: string | null;
   last_checked_at: string | null;
 }
@@ -127,8 +128,11 @@ export const api = {
   publishTenantSite: (tenantId: string) => request<{ ok: true; publishedAt: string }>(`/admin/tenants/${tenantId}/site/publish`, { method: "POST" }),
 
   getTenantDomains: (tenantId: string) => request<{ domains: Domain[] }>(`/admin/tenants/${tenantId}/domains`),
-  addTenantDomain: (tenantId: string, domain: string) =>
-    request<{ id: string; status: string; dnsRecords: DnsRecord[] }>(`/admin/tenants/${tenantId}/domains`, { method: "POST", body: JSON.stringify({ domain }) }),
+  addTenantDomain: (tenantId: string, domain: string, mode?: "cname" | "zone") =>
+    request<{ id: string; status: string; dnsRecords: DnsRecord[]; nameServers: string[] }>(`/admin/tenants/${tenantId}/domains`, {
+      method: "POST",
+      body: JSON.stringify({ domain, mode }),
+    }),
   checkTenantDomain: (tenantId: string, domainId: string) =>
     request<{ status: string }>(`/admin/tenants/${tenantId}/domains/${domainId}/check`, { method: "POST" }),
 };

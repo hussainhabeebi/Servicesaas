@@ -11,12 +11,12 @@ domainsRoute.get("/", async (c) => {
   return c.json({ domains });
 });
 
-const addSchema = z.object({ domain: z.string().min(3) });
+const addSchema = z.object({ domain: z.string().min(3), mode: z.enum(["cname", "zone"]).optional() });
 
 domainsRoute.post("/", async (c) => {
   const parsed = addSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-  const result = await addDomain(c.env, c.get("tenantId"), parsed.data.domain);
+  const result = await addDomain(c.env, c.get("tenantId"), parsed.data.domain, parsed.data.mode);
   if ("error" in result) return c.json(result, 400);
   return c.json(result, 201);
 });
