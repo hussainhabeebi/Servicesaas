@@ -1,0 +1,10 @@
+name = "servbazaar-admin"
+compatibility_date = "2024-09-25"
+
+# Pure static SPA — no Worker code, just serves the Vite build output.
+# not_found_handling = "single-page-application" is the Workers Static
+# Assets equivalent of the old public/_redirects "/* /index.html 200" rule
+# (client-side routing needs every unknown path to fall back to index.html).
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

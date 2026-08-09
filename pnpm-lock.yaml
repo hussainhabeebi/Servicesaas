@@ -39,6 +39,9 @@ importers:
       vite:
         specifier: ^5.4.6
         version: 5.4.21(terser@5.49.2)
+      wrangler:
+        specifier: ^3.78.10
+        version: 3.114.17(@cloudflare/workers-types@4.20260702.1)
 
   apps/tenant:
     dependencies:
