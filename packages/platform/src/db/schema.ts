@@ -648,6 +648,29 @@ export const vendorBills = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// Web Push subscriptions (tenant sites — booking reminders / rebook nudges,
+// independent of the WhatsApp channel). One row per browser/device.
+// ---------------------------------------------------------------------------
+
+export const pushSubscriptions = sqliteTable(
+  "push_subscriptions",
+  {
+    id: id(),
+    tenant_id: text("tenant_id").notNull(),
+    customer_id: text("customer_id"),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    created_at: timestamps.created_at,
+  },
+  (t) => [
+    index("push_subscriptions_tenant_idx").on(t.tenant_id),
+    index("push_subscriptions_customer_idx").on(t.customer_id),
+    uniqueIndex("push_subscriptions_tenant_endpoint_idx").on(t.tenant_id, t.endpoint),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Calendar sync (Google Calendar / Cal.com) — per staff member. OAuth
 // exchange itself needs real provider app credentials this environment
 // can't provision; see routes/calendar-sync.ts for what's stubbed.

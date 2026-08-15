@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { createDb, schema } from "@serviceos/platform";
@@ -9,6 +9,7 @@ import { createJobReminderTask, createStaffAssignmentTask } from "../lib/tasks";
 import { findAvailableStaff } from "../lib/staff-matching";
 import { createAndSendDepositInvoice } from "../lib/deposits";
 import { recordCompletionIfNew } from "../lib/loyalty";
+import { ensureInvoiceForCompletedBooking } from "../lib/billing-on-completion";
 
 export const bookingsRoute = new Hono<AppContext>();
 
@@ -60,6 +61,13 @@ async function resolveAreaAndStaff(
   return { area, staffId: candidates[0]?.id, autoAssignFailed: candidates.length === 0 };
 }
 
+/** A staff-role login may only act on jobs assigned to their own staff_id — owner/admin are unrestricted. */
+async function staffCanActOnBooking(c: Context<AppContext>, db: ReturnType<typeof createDb>, tenantId: string, bookingId: string): Promise<boolean> {
+  if (c.get("tenantRole") !== "staff") return true;
+  const [booking] = await db.select({ staff_id: schema.bookings.staff_id }).from(schema.bookings).where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId))).limit(1);
+  return !!booking && booking.staff_id === c.get("staffId");
+}
+
 function addRecurrence(dateIso: string, rule: "weekly" | "biweekly" | "monthly"): string {
   const date = new Date(dateIso);
   if (rule === "weekly") date.setUTCDate(date.getUTCDate() + 7);
@@ -73,6 +81,28 @@ bookingsRoute.get("/", async (c) => {
   const { staff_id, from, to, status } = c.req.query();
   const conditions = [eq(schema.bookings.tenant_id, c.get("tenantId"))];
   if (staff_id) conditions.push(eq(schema.bookings.staff_id, staff_id));
+  if (status) conditions.push(eq(schema.bookings.status, status));
+  if (from) conditions.push(gte(schema.bookings.scheduled_start, from));
+  if (to) conditions.push(lte(schema.bookings.scheduled_start, to));
+  const rows = await db
+    .select()
+    .from(schema.bookings)
+    .where(and(...conditions));
+  return c.json({ bookings: rows });
+});
+
+/**
+ * A staff member's own job list — the mobile "My Jobs" flow (apps/tenant).
+ * Scoped to their own staff_id (from the JWT, see auth/jwt.ts) rather than
+ * trusting a query param, so a staff login can never browse another crew
+ * member's schedule.
+ */
+bookingsRoute.get("/mine", async (c) => {
+  const staffId = c.get("staffId");
+  if (!staffId) return c.json({ error: "This login isn't linked to a staff record" }, 403);
+  const db = createDb(c.env.DB);
+  const { from, to, status } = c.req.query();
+  const conditions = [eq(schema.bookings.tenant_id, c.get("tenantId")), eq(schema.bookings.staff_id, staffId)];
   if (status) conditions.push(eq(schema.bookings.status, status));
   if (from) conditions.push(gte(schema.bookings.scheduled_start, from));
   if (to) conditions.push(lte(schema.bookings.scheduled_start, to));
@@ -262,12 +292,18 @@ bookingsRoute.post("/:id/status", async (c) => {
   const db = createDb(c.env.DB);
   const tenantId = c.get("tenantId");
   const bookingId = c.req.param("id");
+  if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
   await recordCompletionIfNew(db, tenantId, bookingId, parsed.data.status);
   await db
     .update(schema.bookings)
     .set({ status: parsed.data.status, updated_at: new Date().toISOString() })
     .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)));
-  return c.json({ ok: true });
+  let invoiceId: string | undefined;
+  if (parsed.data.status === "completed") {
+    const invoiceResult = await ensureInvoiceForCompletedBooking(db, tenantId, bookingId);
+    invoiceId = invoiceResult.invoiceId;
+  }
+  return c.json({ ok: true, invoiceId });
 });
 
 const checkSchema = z.object({ lat: z.number().optional(), lng: z.number().optional() });
@@ -276,6 +312,9 @@ bookingsRoute.post("/:id/checkin", async (c) => {
   const parsed = checkSchema.safeParse(await c.req.json().catch(() => ({})));
   const data = parsed.success ? parsed.data : {};
   const db = createDb(c.env.DB);
+  const tenantId = c.get("tenantId");
+  const bookingId = c.req.param("id");
+  if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
   await db
     .update(schema.bookings)
     .set({
@@ -285,16 +324,18 @@ bookingsRoute.post("/:id/checkin", async (c) => {
       checkin_lng: data.lng,
       updated_at: new Date().toISOString(),
     })
-    .where(and(eq(schema.bookings.id, c.req.param("id")), eq(schema.bookings.tenant_id, c.get("tenantId"))));
+    .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)));
   return c.json({ ok: true });
 });
 
+/** Checking out a job marks it completed and — see lib/billing-on-completion.ts — auto-creates a draft invoice from the service price if one doesn't already exist, so billing follows the completed job automatically. */
 bookingsRoute.post("/:id/checkout", async (c) => {
   const parsed = checkSchema.safeParse(await c.req.json().catch(() => ({})));
   const data = parsed.success ? parsed.data : {};
   const db = createDb(c.env.DB);
   const tenantId = c.get("tenantId");
   const bookingId = c.req.param("id");
+  if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
   await recordCompletionIfNew(db, tenantId, bookingId, "completed");
   await db
     .update(schema.bookings)
@@ -306,5 +347,6 @@ bookingsRoute.post("/:id/checkout", async (c) => {
       updated_at: new Date().toISOString(),
     })
     .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)));
-  return c.json({ ok: true });
+  const { invoiceId } = await ensureInvoiceForCompletedBooking(db, tenantId, bookingId);
+  return c.json({ ok: true, invoiceId });
 });

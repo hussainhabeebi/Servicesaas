@@ -29,6 +29,7 @@ export function requireAuth(...allowedRoles: Array<"owner" | "staff" | "admin">)
     c.set("tenantId", claims.tenant_id);
     c.set("tenantUserId", claims.sub);
     c.set("tenantRole", claims.role);
+    c.set("staffId", claims.staff_id);
     await next();
   };
 }

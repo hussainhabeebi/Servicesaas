@@ -8,6 +8,16 @@ export function setToken(token: string) {
 }
 export function clearToken() {
   localStorage.removeItem("tenant_token");
+  localStorage.removeItem("tenant_role");
+  localStorage.removeItem("tenant_staff_id");
+}
+
+export type Role = "owner" | "staff" | "admin";
+export function getRole(): Role | null {
+  return (localStorage.getItem("tenant_role") as Role | null) ?? null;
+}
+export function isStaffOnly(): boolean {
+  return getRole() === "staff";
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -32,8 +42,10 @@ export async function login(identifier: string, password: string) {
     body: JSON.stringify({ identifier, password }),
   });
   if (!res.ok) throw new Error("Invalid credentials");
-  const data = (await res.json()) as { accessToken: string; user: { name: string; role: string }; tenant: { id: string; subdomain: string } };
+  const data = (await res.json()) as { accessToken: string; user: { name: string; role: Role; staffId: string | null }; tenant: { id: string; subdomain: string } };
   setToken(data.accessToken);
+  localStorage.setItem("tenant_role", data.user.role);
+  if (data.user.staffId) localStorage.setItem("tenant_staff_id", data.user.staffId);
   return data;
 }
 
@@ -185,6 +197,19 @@ export interface DnsRecord {
   name: string;
   value: string;
 }
+export interface FollowUpItem {
+  type: "hot_lead" | "stalling_quote" | "rebook_due";
+  id: string;
+  title: string;
+  subtitle: string;
+  phone: string;
+}
+export interface StaffingGap {
+  date: string;
+  hour: number;
+  bookedCount: number;
+  availableStaffCount: number;
+}
 export interface Domain {
   id: string;
   domain: string;
@@ -210,12 +235,23 @@ export const api = {
     const qs = params ? "?" + new URLSearchParams(params as Record<string, string>).toString() : "";
     return request<{ bookings: Booking[] }>(`/api/bookings${qs}`);
   },
-  updateBookingStatus: (id: string, status: Booking["status"]) => request(`/api/bookings/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
+  updateBookingStatus: (id: string, status: Booking["status"]) => request<{ ok: boolean; invoiceId?: string }>(`/api/bookings/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
   assignStaff: (bookingId: string, staffId: string) => request(`/api/bookings/${bookingId}/assign-staff`, { method: "PATCH", body: JSON.stringify({ staff_id: staffId }) }),
   availableStaff: (params: { area?: string; start: string; end: string }) => {
     const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v))).toString();
     return request<{ staff: Array<{ id: string; name: string; color: string }> }>(`/api/bookings/available-staff?${qs}`);
   },
+
+  // My Jobs — the staff-role mobile flow. Bookings are scoped server-side to
+  // the caller's own staff_id (see routes/bookings.ts), never trusted client-side.
+  myJobs: (params?: { from?: string; to?: string; status?: string }) => {
+    const qs = params ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString() : "";
+    return request<{ bookings: Booking[] }>(`/api/bookings/mine${qs}`);
+  },
+  checkInJob: (id: string) => request<{ ok: boolean }>(`/api/bookings/${id}/checkin`, { method: "POST", body: JSON.stringify({}) }),
+  completeJob: (id: string) => request<{ ok: boolean; invoiceId?: string }>(`/api/bookings/${id}/checkout`, { method: "POST", body: JSON.stringify({}) }),
+
+  suggestionsToday: () => request<{ followUps: FollowUpItem[]; staffingGaps: StaffingGap[] }>("/api/suggestions/today"),
 
   services: () => request<{ services: Service[] }>("/api/services"),
   createService: (body: { name: string; category?: string; duration_minutes?: number; price?: number; deposit_type?: Service["deposit_type"]; deposit_value?: number }) =>

@@ -8,9 +8,9 @@ import { createDb, schema } from "@serviceos/platform";
  * everyone) for solo operators and for staff with no service_areas set.
  */
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function localDayAndTime(iso: string, timezone: string): { dayOfWeek: number; hhmm: string } {
+export function localDayAndTime(iso: string, timezone: string): { dayOfWeek: number; hhmm: string } {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     weekday: "short",
