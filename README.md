@@ -37,6 +37,31 @@ itself — it has no `wrangler.toml`.
 
 ## What's implemented
 
+- **Suggestions & smart booking** (`lib/suggestions.ts`, `lib/gemini.ts`,
+  `lib/webpush.ts`, `lib/billing-on-completion.ts`): rule-based, no ML —
+  mirrors how the existing win-back/rebooking nudges (`lib/followups.ts`)
+  already work off plain date windows, extended to two new surfaces.
+  - **Tenant sites** (`/public/suggestions/*`, `/public/concierge`,
+    `/public/push/*`): a rebook nudge banner for returning customers, "also
+    booked with this" add-on chips at checkout (stacked as back-to-back
+    bookings, no schema change needed), an off-peak time-slot picker, a
+    post-booking cross-sell prompt, an AI concierge chat bubble
+    (Gemini-backed, same intent-understanding pattern as the WhatsApp bot),
+    and opt-in Web Push booking reminders (RFC 8291/8292 implemented from
+    scratch on Web Crypto — see the VAPID note below).
+  - **Tenant dashboard** (`GET /api/suggestions/today`, apps/tenant's Today
+    page): a ranked "follow up now" queue (hot leads, stalling quotes,
+    customers due to rebook) and a staffing-gap alert (booked jobs vs. crew
+    coverage over the next 7 days) — coverage counting, not the route/
+    schedule optimization still called out as unbuilt below.
+  - **Staff-specific login, connected to billing** (`tenant_users.staff_id`
+    now rides in the JWT; `GET /api/bookings/mine`, apps/tenant's My Jobs
+    page): a crew member's own login sees only their assigned jobs and can
+    check in / mark a job complete from the field. Completing a job
+    auto-creates a draft invoice from the service price if one doesn't
+    already exist, so billing follows the completed job instead of being a
+    separate manual step — still a draft, not auto-sent, since the owner may
+    want to add materials/adjustments first.
 - **D1 schema** (`packages/app/migrations/*.sql`, mirrored as a
   Drizzle schema in `packages/platform/src/db/schema.ts`): every table from
   the spec's suggested list, plus the supporting tables auth/billing/CRM
@@ -368,6 +393,14 @@ payment gateway keys you're testing against. `CHATWOOT_BASE_URL`,
 `CHATWOOT_AGENT_BOT_ID`, `META_APP_ID`, `META_EMBEDDED_SIGNUP_CONFIG_ID`, and
 `GEMINI_MODEL` are plain vars in
 `wrangler.toml`, not secrets.
+
+Booking-reminder push notifications (see "Suggestions & smart booking" below)
+are optional: without `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`
+set, the push endpoints and cron job silently no-op and every other channel
+keeps working. Generate a pair with `npx web-push generate-vapid-keys` (only
+the CLI is used — the actual sending is a from-scratch implementation, see
+`lib/webpush.ts`, since `web-push`'s library targets Node's crypto module and
+doesn't run on Workers).
 
 ## Securing admin access
 

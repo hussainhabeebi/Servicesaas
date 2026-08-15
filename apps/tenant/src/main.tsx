@@ -19,6 +19,7 @@ import { ReportsPage } from "./pages/Reports";
 import { BroadcastsPage } from "./pages/Broadcasts";
 import { VendorBillsPage } from "./pages/VendorBills";
 import { BillingPage } from "./pages/Billing";
+import { MyJobsPage } from "./pages/MyJobs";
 import { setToken } from "./api";
 
 // Landing page hands off a fresh JWT via ?token=... after signup/login,
@@ -52,6 +53,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="broadcasts" element={<BroadcastsPage />} />
           <Route path="vendor-bills" element={<VendorBillsPage />} />
           <Route path="billing" element={<BillingPage />} />
+          <Route path="my-jobs" element={<MyJobsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

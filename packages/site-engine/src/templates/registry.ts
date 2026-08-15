@@ -325,6 +325,56 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
   .modal-success h3 { margin-bottom: 0.4rem; }
   .modal-success p { color: var(--muted); font-size: 0.9rem; }
   .modal-success button { margin-top: 1.25rem; width: 100%; padding: 0.85rem; border-radius: 12px; border: none; background: var(--cream); color: var(--ink); font-weight: 700; cursor: pointer; }
+
+  /* Rebook nudge banner — returning customers */
+  .rebook-bar { display: none; align-items: center; gap: 0.75rem; background: var(--cream); border-bottom: 1px solid #e2e8f0; padding: 0.65rem 1.25rem; font-size: 0.86rem; }
+  .rebook-bar.show { display: flex; }
+  .rebook-bar .txt { flex: 1; color: #334155; }
+  .rebook-bar .txt strong { color: var(--ink); }
+  .rebook-bar button { border: none; border-radius: 999px; padding: 0.4rem 0.9rem; font-weight: 700; font-size: 0.8rem; cursor: pointer; }
+  .rebook-bar .rb-go { background: var(--accent); color: #fff; }
+  .rebook-bar .rb-dismiss { background: none; color: var(--muted); }
+
+  /* Add-on suggestion chips in the booking modal */
+  .addon-suggestions { margin-top: 0.85rem; }
+  .addon-suggestions .label { font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem; }
+  .addon-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .addon-chip { border: 1px solid #d1d5db; border-radius: 999px; padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+  .addon-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Smart time-slot chips */
+  .slot-suggestions { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .slot-chip { border: 1px solid #d1d5db; border-radius: 10px; padding: 0.4rem 0.7rem; font-size: 0.78rem; background: #fff; cursor: pointer; position: relative; }
+  .slot-chip.recommended { border-color: var(--accent); color: var(--accent-dark); font-weight: 700; }
+  .slot-chip.recommended::after { content: '★'; margin-left: 0.3rem; font-size: 0.7rem; }
+  .slot-chip.chosen { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Post-booking cross-sell */
+  .cross-sell { margin-top: 1.1rem; border: 1px dashed #cbd5e1; border-radius: 14px; padding: 1rem; text-align: left; }
+  .cross-sell .label { font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 0.5rem; }
+  .cross-sell .row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .cross-sell .name { font-weight: 700; font-size: 0.92rem; }
+  .cross-sell .price { color: var(--muted); font-size: 0.82rem; }
+  .cross-sell button { border: none; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 700; font-size: 0.8rem; padding: 0.45rem 0.9rem; cursor: pointer; }
+
+  /* Push-notification opt-in */
+  .push-opt-in { margin-top: 0.9rem; width: 100%; padding: 0.7rem; border-radius: 10px; border: 1px solid #d1d5db; background: #fff; color: var(--ink); font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+  .push-opt-in.subscribed { border-color: #16a34a; color: #16a34a; }
+
+  /* AI concierge */
+  .concierge-fab { position: fixed; right: 1rem; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 62; width: 54px; height: 54px; border-radius: 50%; border: none; background: var(--ink); color: #fff; font-size: 1.4rem; cursor: pointer; box-shadow: 0 10px 24px rgba(0,0,0,0.22); display: flex; align-items: center; justify-content: center; }
+  .concierge-panel { position: fixed; right: 0.85rem; left: 0.85rem; bottom: calc(154px + env(safe-area-inset-bottom)); z-index: 63; max-width: 380px; margin-left: auto; background: #fff; border-radius: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.25); display: none; flex-direction: column; max-height: 60vh; overflow: hidden; }
+  .concierge-panel.open { display: flex; }
+  .concierge-head { background: var(--accent); color: #fff; padding: 0.85rem 1rem; display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 0.9rem; }
+  .concierge-head button { background: none; border: none; color: #fff; font-size: 1.1rem; cursor: pointer; }
+  .concierge-body { flex: 1; overflow-y: auto; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.55rem; }
+  .concierge-msg { max-width: 85%; padding: 0.55rem 0.75rem; border-radius: 12px; font-size: 0.84rem; line-height: 1.4; }
+  .concierge-msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 2px; }
+  .concierge-msg.assistant { align-self: flex-start; background: var(--cream); color: var(--ink); border-bottom-left-radius: 2px; }
+  .concierge-msg .book-cta { display: block; margin-top: 0.5rem; border: none; border-radius: 8px; padding: 0.4rem 0.7rem; background: #fff; color: var(--accent); font-weight: 700; font-size: 0.78rem; cursor: pointer; }
+  .concierge-input-row { display: flex; gap: 0.5rem; padding: 0.7rem; border-top: 1px solid #f1f5f9; }
+  .concierge-input-row input { flex: 1; border: 1px solid #d1d5db; border-radius: 999px; padding: 0.5rem 0.9rem; font-size: 0.85rem; font-family: inherit; }
+  .concierge-input-row button { border: none; border-radius: 999px; width: 38px; height: 38px; background: var(--accent); color: #fff; font-size: 1rem; cursor: pointer; flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -340,6 +390,12 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
     <button class="nav-book" type="button" onclick="openBooking()">Book Now</button>
   </div>
 </nav>
+
+<div class="rebook-bar" id="rebook-bar">
+  <span class="txt" id="rebook-text"></span>
+  <button class="rb-dismiss" type="button" onclick="dismissRebook()">Not now</button>
+  <button class="rb-go" type="button" id="rebook-go">Book again</button>
+</div>
 
 <header>
   <div class="inner">
@@ -393,6 +449,10 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
       <form id="booking-form">
         <label for="bf-service">Service</label>
         <select id="bf-service" name="service_id" required></select>
+        <div class="addon-suggestions" id="addon-wrap" style="display:none">
+          <div class="label">Frequently booked together</div>
+          <div class="addon-chip-row" id="addon-chip-row"></div>
+        </div>
         <div class="row2">
           <div>
             <label for="bf-date">Date</label>
@@ -403,6 +463,7 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
             <input id="bf-time" name="time" type="time" required />
           </div>
         </div>
+        <div class="slot-suggestions" id="slot-suggestions"></div>
         <label for="bf-name">Your name</label>
         <input id="bf-name" name="customer_name" required minlength="2" />
         <label for="bf-phone">Phone</label>
@@ -418,10 +479,36 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
         <div class="check">✓</div>
         <h3>You're booked!</h3>
         <p id="booking-success-detail"></p>
+        <div class="cross-sell" id="cross-sell" style="display:none">
+          <div class="label">Add before you go?</div>
+          <div class="row">
+            <div>
+              <div class="name" id="cross-sell-name"></div>
+              <div class="price" id="cross-sell-price"></div>
+            </div>
+            <button type="button" id="cross-sell-add">Add</button>
+          </div>
+        </div>
+        <button class="push-opt-in" type="button" id="push-opt-in" onclick="enablePush()">🔔 Get a reminder before your visit</button>
         <button type="button" onclick="closeBooking()">Done</button>
       </div>
     </div>
   </div>
+</div>
+
+<button class="concierge-fab" type="button" id="concierge-fab" aria-label="Chat with us" onclick="toggleConcierge()">💬</button>
+<div class="concierge-panel" id="concierge-panel">
+  <div class="concierge-head">
+    <span>Ask ${name}</span>
+    <button type="button" onclick="toggleConcierge()" aria-label="Close chat">&times;</button>
+  </div>
+  <div class="concierge-body" id="concierge-body">
+    <div class="concierge-msg assistant">Hi! What can we help you book today?</div>
+  </div>
+  <form class="concierge-input-row" id="concierge-form">
+    <input id="concierge-input" type="text" placeholder="Ask about a service…" autocomplete="off" />
+    <button type="submit" aria-label="Send">➤</button>
+  </form>
 </div>
 
 <script>
@@ -436,6 +523,29 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('/sw.js').catch(function () {});
     });
+  }
+
+  // --- Rebook nudge for returning customers ---
+  (function () {
+    var phone;
+    try { phone = localStorage.getItem('sb_customer_phone'); } catch (err) { phone = null; }
+    if (!phone || localStorage.getItem('sb_rebook_dismissed') === phone) return;
+    fetch(API_BASE + '/public/suggestions/rebook?phone=' + encodeURIComponent(phone), { headers: { 'X-Site-Host': window.location.host } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.suggestion) return;
+        document.getElementById('rebook-text').innerHTML = 'Welcome back! Ready to book <strong>' + data.suggestion.serviceName + '</strong> again?';
+        document.getElementById('rebook-go').addEventListener('click', function () { openBooking(data.suggestion.serviceId); });
+        document.getElementById('rebook-bar').classList.add('show');
+      })
+      .catch(function () {});
+  })();
+  function dismissRebook() {
+    document.getElementById('rebook-bar').classList.remove('show');
+    try {
+      var phone = localStorage.getItem('sb_customer_phone');
+      if (phone) localStorage.setItem('sb_rebook_dismissed', phone);
+    } catch (err) {}
   }
 
   // Nav shadow on scroll
@@ -465,13 +575,72 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
     opt.textContent = s.name + ' — ' + CURRENCY + ' ' + s.price.toFixed(0);
     serviceSelect.appendChild(opt);
   });
-
   var dateInput = document.getElementById('bf-date');
+  var timeInput = document.getElementById('bf-time');
   var today = new Date();
   dateInput.min = today.toISOString().slice(0, 10);
 
+  var selectedAddons = []; // [{id, name, price, duration_minutes}]
+
+  function renderAddonChips(suggestions) {
+    var wrap = document.getElementById('addon-wrap');
+    var row = document.getElementById('addon-chip-row');
+    row.innerHTML = '';
+    selectedAddons = [];
+    if (!suggestions || suggestions.length === 0) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    suggestions.forEach(function (s) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'addon-chip';
+      chip.textContent = '+ ' + s.name + ' — ' + CURRENCY + ' ' + s.price.toFixed(0);
+      chip.addEventListener('click', function () {
+        var idx = selectedAddons.findIndex(function (a) { return a.id === s.id; });
+        if (idx >= 0) { selectedAddons.splice(idx, 1); chip.classList.remove('selected'); }
+        else { selectedAddons.push({ id: s.id, name: s.name, price: s.price, duration_minutes: s.durationMinutes }); chip.classList.add('selected'); }
+      });
+      row.appendChild(chip);
+    });
+  }
+
+  function loadAddonSuggestions() {
+    if (!serviceSelect.value) return;
+    fetch(API_BASE + '/public/suggestions/addons?service_id=' + encodeURIComponent(serviceSelect.value), { headers: { 'X-Site-Host': window.location.host } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderAddonChips(data.suggestions); })
+      .catch(function () {});
+  }
+  serviceSelect.addEventListener('change', loadAddonSuggestions);
+
+  function renderSlotChips(slots) {
+    var box = document.getElementById('slot-suggestions');
+    box.innerHTML = '';
+    (slots || []).filter(function (s) { return s.recommended; }).slice(0, 4).forEach(function (s) {
+      var d = new Date(s.start);
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'slot-chip recommended';
+      chip.textContent = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      chip.addEventListener('click', function () {
+        timeInput.value = d.toTimeString().slice(0, 5);
+        box.querySelectorAll('.slot-chip').forEach(function (c) { c.classList.remove('chosen'); });
+        chip.classList.add('chosen');
+      });
+      box.appendChild(chip);
+    });
+  }
+  function loadSlotSuggestions() {
+    if (!dateInput.value || !serviceSelect.value) return;
+    fetch(API_BASE + '/public/suggestions/best-slots?service_id=' + encodeURIComponent(serviceSelect.value) + '&date=' + dateInput.value, { headers: { 'X-Site-Host': window.location.host } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderSlotChips(data.slots); })
+      .catch(function () {});
+  }
+  dateInput.addEventListener('change', loadSlotSuggestions);
+
   function openBooking(serviceId) {
     if (serviceId) serviceSelect.value = serviceId;
+    loadAddonSuggestions();
     document.getElementById('booking-form-wrap').style.display = '';
     document.getElementById('booking-success').style.display = 'none';
     document.getElementById('booking-overlay').classList.add('open');
@@ -485,6 +654,39 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
     if (e.target === this) closeBooking();
   });
 
+  function bookOne(serviceId, customerName, customerPhone, addressLine, scheduledStartIso) {
+    return fetch(API_BASE + '/public/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Site-Host': window.location.host },
+      body: JSON.stringify({ service_id: serviceId, customer_name: customerName, customer_phone: customerPhone, address_line: addressLine || undefined, scheduled_start: scheduledStartIso }),
+    }).then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); });
+  }
+
+  function showCrossSell(primaryServiceId, addonIds) {
+    var box = document.getElementById('cross-sell');
+    var excludeIds = [primaryServiceId].concat(addonIds);
+    fetch(API_BASE + '/public/suggestions/addons?service_id=' + encodeURIComponent(primaryServiceId) + '&exclude=' + encodeURIComponent(excludeIds.join(',')), { headers: { 'X-Site-Host': window.location.host } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var suggestion = data.suggestions && data.suggestions[0];
+        if (!suggestion) return;
+        document.getElementById('cross-sell-name').textContent = suggestion.name;
+        document.getElementById('cross-sell-price').textContent = CURRENCY + ' ' + suggestion.price.toFixed(0);
+        box.style.display = '';
+        document.getElementById('cross-sell-add').onclick = function () {
+          box.querySelector('button').disabled = true;
+          document.getElementById('cross-sell-add').textContent = 'Adding…';
+          var start = new Date(Date.now() + 24 * 3600000).toISOString();
+          bookOne(suggestion.id, lastCustomerName, lastCustomerPhone, lastAddressLine, start).then(function () {
+            box.innerHTML = '<div class="label">Added — we\\'ll be in touch to confirm the time.</div>';
+          });
+        };
+      })
+      .catch(function () {});
+  }
+
+  var lastCustomerName = '', lastCustomerPhone = '', lastAddressLine = '';
+
   document.getElementById('booking-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var form = e.target;
@@ -495,22 +697,29 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
 
     if (!form.date.value || !form.time.value) return;
     var scheduledStart = new Date(form.date.value + 'T' + form.time.value + ':00').toISOString();
+    lastCustomerName = form.customer_name.value;
+    lastCustomerPhone = form.customer_phone.value;
+    lastAddressLine = form.address_line.value;
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Booking…';
 
-    fetch(API_BASE + '/public/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Site-Host': window.location.host },
-      body: JSON.stringify({
-        service_id: form.service_id.value,
-        customer_name: form.customer_name.value,
-        customer_phone: form.customer_phone.value,
-        address_line: form.address_line.value || undefined,
-        scheduled_start: scheduledStart,
-      }),
-    })
-      .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+    bookOne(form.service_id.value, lastCustomerName, lastCustomerPhone, lastAddressLine, scheduledStart)
+      .then(function (result) {
+        if (!result.ok) return result;
+        // Stack any selected add-ons back-to-back right after the primary booking.
+        var chain = Promise.resolve(result);
+        var cursor = result.data.scheduled_end;
+        selectedAddons.forEach(function (addon) {
+          chain = chain.then(function (prev) {
+            return bookOne(addon.id, lastCustomerName, lastCustomerPhone, lastAddressLine, cursor).then(function (addonResult) {
+              if (addonResult.ok) cursor = addonResult.data.scheduled_end;
+              return prev; // keep resolving with the primary booking's result for the success message
+            });
+          });
+        });
+        return chain;
+      })
       .then(function (result) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Confirm booking';
@@ -522,8 +731,13 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
         document.getElementById('booking-form-wrap').style.display = 'none';
         document.getElementById('booking-success').style.display = '';
         var detail = 'We\\'ve got you down for ' + new Date(scheduledStart).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '.';
+        if (selectedAddons.length) detail += ' Plus ' + selectedAddons.map(function (a) { return a.name; }).join(', ') + ', back-to-back.';
         if (result.data.depositRequired) detail += ' A deposit of ' + CURRENCY + ' ' + Number(result.data.depositRequired).toFixed(0) + ' may be requested to confirm.';
         document.getElementById('booking-success-detail').textContent = detail;
+        try { localStorage.setItem('sb_customer_phone', lastCustomerPhone); } catch (err) {}
+        document.getElementById('cross-sell').style.display = 'none';
+        showCrossSell(form.service_id.value, selectedAddons.map(function (a) { return a.id; }));
+        resetPushButton();
         form.reset();
       })
       .catch(function () {
@@ -551,6 +765,89 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
   function doInstall() {
     installBanner.classList.remove('show');
     if (deferredInstallPrompt) deferredInstallPrompt.prompt();
+  }
+
+  // --- AI concierge ---
+  var conciergeHistory = [];
+  var conciergePanel = document.getElementById('concierge-panel');
+  var conciergeBody = document.getElementById('concierge-body');
+  function toggleConcierge() { conciergePanel.classList.toggle('open'); }
+  function addConciergeMsg(role, text, bookServiceId) {
+    var msg = document.createElement('div');
+    msg.className = 'concierge-msg ' + role;
+    msg.textContent = text;
+    if (bookServiceId) {
+      var cta = document.createElement('button');
+      cta.type = 'button';
+      cta.className = 'book-cta';
+      cta.textContent = 'Book this service';
+      cta.addEventListener('click', function () { toggleConcierge(); openBooking(bookServiceId); });
+      msg.appendChild(cta);
+    }
+    conciergeBody.appendChild(msg);
+    conciergeBody.scrollTop = conciergeBody.scrollHeight;
+  }
+  document.getElementById('concierge-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = document.getElementById('concierge-input');
+    var text = input.value.trim();
+    if (!text) return;
+    addConciergeMsg('user', text);
+    conciergeHistory.push({ role: 'user', text: text });
+    input.value = '';
+    fetch(API_BASE + '/public/concierge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Site-Host': window.location.host },
+      body: JSON.stringify({ message: text, history: conciergeHistory.slice(-8) }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        addConciergeMsg('assistant', data.reply, data.matchedServiceId);
+        conciergeHistory.push({ role: 'assistant', text: data.reply });
+        if (data.openBooking && data.matchedServiceId) { toggleConcierge(); openBooking(data.matchedServiceId); }
+      })
+      .catch(function () { addConciergeMsg('assistant', 'Sorry, something went wrong — please try again.'); });
+  });
+
+  // --- Push notification opt-in ---
+  function urlBase64ToUint8Array(base64) {
+    var padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    var base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = atob(base64Safe);
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function resetPushButton() {
+    var btn = document.getElementById('push-opt-in');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) { btn.style.display = 'none'; return; }
+    navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription();
+    }).then(function (sub) {
+      if (sub) { btn.textContent = '🔔 Reminders on'; btn.classList.add('subscribed'); }
+      else { btn.textContent = '🔔 Get a reminder before your visit'; btn.classList.remove('subscribed'); }
+    }).catch(function () {});
+  }
+  function enablePush() {
+    var btn = document.getElementById('push-opt-in');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    fetch(API_BASE + '/public/push/vapid-public-key', { headers: { 'X-Site-Host': window.location.host } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.publicKey) return;
+        return navigator.serviceWorker.ready.then(function (reg) {
+          return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(data.publicKey) });
+        }).then(function (sub) {
+          var json = sub.toJSON();
+          return fetch(API_BASE + '/public/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Site-Host': window.location.host },
+            body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, customer_phone: lastCustomerPhone || undefined }),
+          });
+        });
+      })
+      .then(function () { resetPushButton(); })
+      .catch(function () { btn.textContent = 'Could not enable reminders'; });
   }
 </script>
 </body>

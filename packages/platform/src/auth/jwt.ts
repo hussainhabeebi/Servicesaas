@@ -6,6 +6,7 @@ export interface AccessTokenClaims {
   sub: string; // tenant_user_id
   tenant_id: string;
   role: "owner" | "staff" | "admin";
+  staff_id?: string; // links a staff-role login to its operational staff/crew record — see tenant_users.staff_id
   exp: number;
   iat: number;
 }

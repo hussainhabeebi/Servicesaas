@@ -66,4 +66,32 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(req).then((cached) => cached || caches.match('/')))
   );
 });
+
+// Booking reminders / rebook nudges (lib/webpush.ts + lib/push-reminders.ts
+// on the API worker) arrive here as a push event.
+self.addEventListener('push', (event) => {
+  let data = { title: 'Reminder', body: '' };
+  try { data = event.data ? event.data.json() : data; } catch (e) {}
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Reminder', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clients) => {
+      for (const client of clients) {
+        if (client.url === url && 'focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
 `;

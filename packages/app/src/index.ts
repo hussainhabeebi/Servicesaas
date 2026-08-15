@@ -31,6 +31,7 @@ import { broadcastRoute } from "./routes/broadcast";
 import { calendarSyncRoute } from "./routes/calendar-sync";
 import { billingRoute } from "./routes/billing";
 import { teamRoute } from "./routes/team";
+import { suggestionsRoute } from "./routes/suggestions";
 import { BookingCalendarDO } from "./durable-objects/booking-calendar";
 
 const app = new Hono<AppContext>();
@@ -77,6 +78,7 @@ api.route("/broadcasts", broadcastRoute);
 api.route("/calendar-sync", calendarSyncRoute);
 api.route("/billing", billingRoute);
 api.route("/team", teamRoute);
+api.route("/suggestions", suggestionsRoute);
 app.route("/api", api);
 
 // --- Platform admin: real per-person accounts (see routes/admin-auth.ts) ---
@@ -115,11 +117,13 @@ export default {
     const { eq } = await import("drizzle-orm");
     const { rollupDailyStatsForTenant } = await import("./lib/rollup");
     const { runFollowUpsForTenant } = await import("./lib/followups");
+    const { runPushRemindersForTenant } = await import("./lib/push-reminders");
     const db = createDb(env.DB);
     const tenants = await db.select({ id: schema.tenants.id }).from(schema.tenants).where(eq(schema.tenants.status, "active"));
     for (const tenant of tenants) {
       await rollupDailyStatsForTenant(env, tenant.id).catch((err) => console.error(`rollup failed for tenant ${tenant.id}`, err));
       await runFollowUpsForTenant(env, tenant.id).catch((err) => console.error(`follow-ups failed for tenant ${tenant.id}`, err));
+      await runPushRemindersForTenant(env, tenant.id).catch((err) => console.error(`push reminders failed for tenant ${tenant.id}`, err));
     }
   },
 };

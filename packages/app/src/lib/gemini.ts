@@ -104,3 +104,55 @@ Extract:
     return null;
   }
 }
+
+export interface ConciergeReply {
+  reply: string;
+  matchedServiceId: string | null;
+  openBooking: boolean;
+}
+
+const CONCIERGE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    reply: { type: "STRING" },
+    matchedServiceIndex: { type: "INTEGER", nullable: true },
+    openBooking: { type: "BOOLEAN" },
+  },
+  required: ["reply", "openBooking"],
+};
+
+/**
+ * The AI concierge chat bubble on a tenant's booking site (site-engine) —
+ * same Gemini-powered "understand what the customer needs" pattern as the
+ * WhatsApp bot's geminiExtractBookingIntent, brought to the web widget
+ * instead. Kept single-turn + short history (not a full agent loop): each
+ * call gets the whole visible conversation and returns one reply plus
+ * whether to route the visitor straight into the booking modal.
+ */
+export async function geminiConciergeReply(
+  apiKey: string,
+  model: string,
+  params: {
+    businessName: string;
+    services: Array<{ id: string; name: string; category: string | null; price: number }>;
+    currency: string;
+    history: Array<{ role: "user" | "assistant"; text: string }>;
+    message: string;
+  }
+): Promise<ConciergeReply | null> {
+  const prompt = `You are a friendly, concise booking concierge on ${params.businessName}'s website. A visitor is chatting with you before booking a service.
+Available services (index: name/category/price): ${params.services.map((s, i) => `${i}: ${s.name} (${s.category ?? "general"}) — ${params.currency} ${s.price}`).join("; ")}.
+${params.history.length ? `Conversation so far:\n${params.history.map((h) => `${h.role === "user" ? "Visitor" : "You"}: ${h.text}`).join("\n")}\n` : ""}Visitor's new message: "${params.message}"
+
+Reply in 1-3 short sentences, helpful and specific to the services listed above — never invent a service that isn't in the list. If one service is clearly the best fit, name it and set matchedServiceIndex to its index. Set openBooking to true only if the visitor seems ready to book (not just asking questions).`;
+
+  const text = await generateContent(apiKey, model, [{ text: prompt }], CONCIERGE_SCHEMA);
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text) as { reply: string; matchedServiceIndex?: number | null; openBooking: boolean };
+    const matched = typeof parsed.matchedServiceIndex === "number" ? params.services[parsed.matchedServiceIndex] : undefined;
+    return { reply: parsed.reply, matchedServiceId: matched?.id ?? null, openBooking: parsed.openBooking };
+  } catch {
+    return null;
+  }
+}

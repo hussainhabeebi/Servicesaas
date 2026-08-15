@@ -14,8 +14,8 @@ export function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await login(identifier, password);
-      navigate("/");
+      const result = await login(identifier, password);
+      navigate(result.user.role === "staff" ? "/my-jobs" : "/");
     } catch {
       setError("Invalid email/phone or password.");
     } finally {

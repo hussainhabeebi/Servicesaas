@@ -52,13 +52,13 @@ authRoute.post("/login", async (c) => {
   if (!tenant || tenant.status !== "active") return c.json({ error: "Account is not active" }, 403);
 
   const token = await signAccessToken(
-    { sub: user.id, tenant_id: user.tenant_id, role: user.role as "owner" | "staff" | "admin" },
+    { sub: user.id, tenant_id: user.tenant_id, role: user.role as "owner" | "staff" | "admin", staff_id: user.staff_id ?? undefined },
     c.env.JWT_SECRET
   );
 
   return c.json({
     accessToken: token,
-    user: { id: user.id, name: user.name, role: user.role },
+    user: { id: user.id, name: user.name, role: user.role, staffId: user.staff_id },
     tenant: { id: tenant.id, subdomain: tenant.subdomain },
   });
 });
