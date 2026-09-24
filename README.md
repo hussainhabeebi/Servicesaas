@@ -148,6 +148,15 @@ itself — it has no `wrangler.toml`.
   (`packages/site-engine/src/templates/registry.ts`) with content and
   template kept decoupled, sitemap.xml/robots.txt, booking widget +
   WhatsApp click-to-chat button auto-embedded.
+- **Selectable site designs** (`packages/site-engine/src/templates/designs.ts`):
+  tenants pick a layout style — Modern (default, the original look),
+  Elegant (serif, cream, menu-style price list) or Bold (dark, big
+  uppercase type) — on the dashboard's Website page (admins can also set it
+  from the tenant's support page). The design is separate from the vertical, which still
+  supplies the accent color. Stored as `content.design`, so it goes through
+  Save draft → `?preview=1` → Publish and is covered by version rollback.
+  Designs are CSS layered over the same markup, so booking, concierge
+  and PWA features work in every design.
 - **Marketing landing page** (`packages/site-engine/src/templates/landing.ts`):
   served by site-engine for the bare apex domain (and `www.`), intercepted
   before tenant host resolution runs. Full SEO (Open Graph, Twitter Card,

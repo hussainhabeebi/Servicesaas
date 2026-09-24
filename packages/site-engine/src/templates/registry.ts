@@ -1,4 +1,5 @@
 import { FAVICON_DATA_URI } from "../assets/logo";
+import { getDesign } from "./designs";
 
 /**
  * Content and template are decoupled (spec §8): `sites.draft_content` /
@@ -46,6 +47,8 @@ export interface SiteContent {
   gallery?: string[];
   testimonials?: Array<{ name: string; quote: string }>;
   languages?: string[];
+  /** Layout/visual style key — see templates/designs.ts. */
+  design?: string;
 }
 
 export interface ServiceForSite {
@@ -92,6 +95,7 @@ export function renderSitePage(opts: {
   apiBaseUrl: string;
 }): string {
   const theme = getTheme(opts.templateKey);
+  const design = getDesign(opts.content.design);
   const name = escapeHtml(opts.content.businessName ?? "Our Business");
   const hero = escapeHtml(opts.content.heroText ?? theme.heroSubtext);
   const iconHref = opts.content.logoUrl ? escapeHtml(opts.content.logoUrl) : FAVICON_DATA_URI;
@@ -226,6 +230,9 @@ ${opts.content.logoUrl ? `<meta property="og:image" content="${escapeHtml(opts.c
 ${opts.isDraftPreview ? '<meta name="robots" content="noindex" />' : ""}
 ${jsonLdScript(localBusiness)}
 ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
+${design.fontHref ? `<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="${design.fontHref}" />` : ""}
 <style>
   :root { --accent: ${theme.accent}; --accent-dark: ${theme.accentDark}; --ink: #0f172a; --muted: #64748b; --cream: #f8fafc; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -250,6 +257,7 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
   .biz-logo { width: 68px; height: 68px; border-radius: 18px; object-fit: cover; margin: 0 auto 1rem; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: block; opacity: 0; animation: fadeInUp 0.6s ease forwards; }
   header h1 { margin: 0 0 0.6rem; font-size: clamp(1.7rem, 5vw, 2.4rem); font-weight: 800; opacity: 0; animation: fadeInUp 0.6s ease 0.08s forwards; }
   header p.hero-text { max-width: 480px; margin: 0 auto; font-size: 1.05rem; opacity: 0; animation: fadeInUp 0.6s ease 0.16s forwards; color: rgba(255,255,255,0.92); }
+  .eyebrow { display: none; }
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
   .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 1.1rem; opacity: 0; animation: fadeInUp 0.6s ease 0.24s forwards; }
   .chip { background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.35rem 0.8rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
@@ -375,9 +383,10 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
   .concierge-input-row { display: flex; gap: 0.5rem; padding: 0.7rem; border-top: 1px solid #f1f5f9; }
   .concierge-input-row input { flex: 1; border: 1px solid #d1d5db; border-radius: 999px; padding: 0.5rem 0.9rem; font-size: 0.85rem; font-family: inherit; }
   .concierge-input-row button { border: none; border-radius: 999px; width: 38px; height: 38px; background: var(--accent); color: #fff; font-size: 1rem; cursor: pointer; flex: 0 0 auto; }
+${design.css}
 </style>
 </head>
-<body>
+<body class="design-${design.key}">
 
 <nav id="navbar">
   <a class="brand" href="/">${opts.content.logoUrl ? `<img src="${escapeHtml(opts.content.logoUrl)}" alt="" />` : `<span style="width:30px;height:30px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;">${theme.emoji}</span>`}${name}</a>
@@ -400,6 +409,7 @@ ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
 <header>
   <div class="inner">
     ${opts.content.logoUrl ? `<img class="biz-logo" src="${escapeHtml(opts.content.logoUrl)}" alt="${name} logo" />` : ""}
+    <span class="eyebrow">${escapeHtml(theme.label)}</span>
     <h1>${name}</h1>
     <p class="hero-text">${hero}</p>
     <div class="chips">

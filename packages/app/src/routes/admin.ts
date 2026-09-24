@@ -5,7 +5,7 @@ import { createDb, schema, hashPassword, signAccessToken } from "@serviceos/plat
 import type { AppContext } from "@serviceos/platform";
 import { generateTempPassword } from "../lib/temp-password";
 import { clearedLockoutState } from "../lib/lockout";
-import { getSite, updateSite, publishSite } from "../lib/site-management";
+import { SITE_DESIGN_KEYS, getSite, updateSite, publishSite } from "../lib/site-management";
 import { listDomains, addDomain, addManualDomain, markManualDomainActive, checkDomain } from "../lib/domain-management";
 
 /** Cross-tenant ops endpoints for the internal /admin dashboard. Callers must hold a valid admin JWT (see index.ts wiring). */
@@ -161,6 +161,7 @@ const siteContentSchema = z.object({
   gallery: z.array(z.string()).optional(),
   testimonials: z.array(z.object({ name: z.string(), quote: z.string() })).optional(),
   languages: z.array(z.enum(["en", "ar"])).optional(),
+  design: z.enum(SITE_DESIGN_KEYS).optional(),
 });
 const siteUpdateSchema = z.object({
   content: siteContentSchema.optional(),
