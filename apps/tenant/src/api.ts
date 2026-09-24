@@ -177,6 +177,7 @@ export interface SiteContent {
   gallery?: string[];
   testimonials?: Array<{ name: string; quote: string }>;
   languages?: Array<"en" | "ar">;
+  design?: "modern" | "elegant" | "bold";
 }
 export interface Site {
   id: string;

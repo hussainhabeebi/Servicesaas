@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { createDb } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
-import { getSite, updateSite, publishSite, listSiteVersions, rollbackSiteVersion } from "../lib/site-management";
+import { SITE_DESIGN_KEYS, getSite, updateSite, publishSite, listSiteVersions, rollbackSiteVersion } from "../lib/site-management";
 
 /**
  * Website management module (spec §8): visual-editor-safe content fields
@@ -22,6 +22,7 @@ const contentSchema = z.object({
   gallery: z.array(z.string()).optional(),
   testimonials: z.array(z.object({ name: z.string(), quote: z.string() })).optional(),
   languages: z.array(z.enum(["en", "ar"])).optional(),
+  design: z.enum(SITE_DESIGN_KEYS).optional(),
 });
 
 const updateSchema = z.object({

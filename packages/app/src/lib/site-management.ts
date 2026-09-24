@@ -8,6 +8,9 @@ import { createDb, schema } from "@serviceos/platform";
  * tenantId (JWT vs a route param).
  */
 
+/** Mirrors SITE_DESIGNS in packages/site-engine/src/templates/designs.ts. */
+export const SITE_DESIGN_KEYS = ["modern", "elegant", "bold"] as const;
+
 export interface SiteContentInput {
   businessName?: string;
   heroText?: string;
@@ -18,6 +21,7 @@ export interface SiteContentInput {
   gallery?: string[];
   testimonials?: Array<{ name: string; quote: string }>;
   languages?: Array<"en" | "ar">;
+  design?: (typeof SITE_DESIGN_KEYS)[number];
 }
 
 export async function getSite(db: ReturnType<typeof createDb>, tenantId: string) {

@@ -94,6 +94,12 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
           <input style={inputStyle} value={form.businessName ?? ""} onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
           <label style={labelStyle}>Hero text</label>
           <input style={inputStyle} value={form.heroText ?? ""} onChange={(e) => setForm({ ...form, heroText: e.target.value })} />
+          <label style={labelStyle}>Design</label>
+          <select style={inputStyle} value={form.design ?? "modern"} onChange={(e) => setForm({ ...form, design: e.target.value as NonNullable<SiteContent["design"]> })}>
+            <option value="modern">Modern</option>
+            <option value="elegant">Elegant</option>
+            <option value="bold">Bold</option>
+          </select>
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem" }}>
             <button disabled={busy} onClick={saveDraft}>
               Save draft
