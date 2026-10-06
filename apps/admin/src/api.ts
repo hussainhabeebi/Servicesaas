@@ -81,7 +81,7 @@ export interface SiteContent {
   heroText?: string;
   hours?: string;
   phone?: string;
-  design?: "modern" | "elegant" | "bold";
+  design?: "modern" | "elegant" | "bold" | "danfe";
 }
 export interface Site {
   id: string;
@@ -106,6 +106,7 @@ export interface Domain {
 }
 
 export const api = {
+  connectDanfe: (tenantId: string) => request<{ ok: true; message: string }>(`/admin/tenants/${tenantId}/danfe/connect`, { method: 'POST' }),
   listTenants: () => request<{ tenants: Tenant[] }>("/admin/tenants"),
   getTenant: (id: string) => request<TenantDetail>(`/admin/tenants/${id}`),
   setTenantStatus: (id: string, status: Tenant["status"]) =>

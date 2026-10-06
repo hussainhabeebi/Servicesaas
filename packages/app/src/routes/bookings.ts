@@ -10,8 +10,20 @@ import { findAvailableStaff } from "../lib/staff-matching";
 import { createAndSendDepositInvoice } from "../lib/deposits";
 import { recordCompletionIfNew } from "../lib/loyalty";
 import { ensureInvoiceForCompletedBooking } from "../lib/billing-on-completion";
+import { issueBookingAccess } from '../lib/booking-access';
 
 export const bookingsRoute = new Hono<AppContext>();
+
+bookingsRoute.post('/:id/customer-link', async c => {
+  if (c.get('tenantRole') === 'staff') return c.json({ error: 'Only the account owner or admin can issue customer links.' }, 403);
+  const tenantId = c.get('tenantId');
+  if (tenantId !== '758794a2-6df0-4150-b160-4ab5cc7ae0ee') return c.json({ error: 'The Danfe portal belongs to another business.' }, 403);
+  const [booking] = await createDb(c.env.DB).select({ id: schema.bookings.id }).from(schema.bookings).where(and(eq(schema.bookings.id, c.req.param('id')), eq(schema.bookings.tenant_id, tenantId))).limit(1);
+  if (!booking) return c.json({ error: 'Not found' }, 404);
+  const token = await issueBookingAccess(tenantId, booking.id, c.env.JWT_SECRET);
+  c.header('Cache-Control', 'no-store');
+  return c.json({ url: `https://www.danfecleaning.com/bookings#booking=${booking.id}&access=${token}`, expiresInDays: 7 });
+});
 
 const CANCELLATION_CUTOFF_HOURS = 24;
 const CANCELLATION_FEE_RATE = 0.25;

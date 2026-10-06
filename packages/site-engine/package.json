@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:danfe": "wrangler dev --config wrangler.danfe.toml",
+    "build:danfe": "wrangler deploy --config wrangler.danfe.toml --dry-run --outdir dist/danfe",
+    "test:danfe": "node --test tests/danfe.test.mjs",
     "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
     "deploy:staging": "wrangler deploy --env staging",

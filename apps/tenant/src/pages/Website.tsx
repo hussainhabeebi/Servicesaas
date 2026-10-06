@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type Site, type SiteContent, type SiteVersion } from "../api";
+import { api, getTenantId, type Site, type SiteContent, type SiteVersion } from "../api";
 import { pageTitle, card, btn, btnPrimary, input } from "../ui";
 
 const SECTIONS: Array<{ key: string; label: string }> = [
@@ -13,6 +13,7 @@ type DesignKey = NonNullable<SiteContent["design"]>;
 
 /** Mirrors SITE_DESIGNS in packages/site-engine/src/templates/designs.ts. The mini preview is a rough sketch of each hero, not a render. */
 const DESIGNS: Array<{ key: DesignKey; label: string; blurb: string; preview: { bg: string; bar: string; title: string; titleFont: string; align: "center" | "left" } }> = [
+  { key: 'danfe', label: 'Danfe booking app', blurb: 'Branded mobile booking, live services and Sharjah/Dubai pages for the connected Danfe account.', preview: { bg: '#f9eef3', bar: '#c81560', title: '#25246b', titleFont: 'system-ui, sans-serif', align: 'left' } },
   { key: "modern", label: "Modern", blurb: "Colourful gradient header, rounded cards. Friendly and app-like.", preview: { bg: "linear-gradient(135deg, #4F46E5, #3730A3)", bar: "rgba(255,255,255,0.55)", title: "#fff", titleFont: "system-ui, sans-serif", align: "center" } },
   { key: "elegant", label: "Elegant", blurb: "Serif type, cream tones, menu-style price list. Suits salons & spas.", preview: { bg: "#faf6ef", bar: "#d6cbb8", title: "#1c1917", titleFont: "Georgia, serif", align: "left" } },
   { key: "bold", label: "Bold", blurb: "Dark, high-contrast, big uppercase headlines. Suits fitness & repair.", preview: { bg: "radial-gradient(ellipse at 15% 0%, #EF4444 0%, transparent 60%), #05070d", bar: "#334155", title: "#fff", titleFont: "system-ui, sans-serif", align: "left" } },
@@ -95,7 +96,7 @@ export function WebsitePage() {
         <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>Design</div>
         <p style={{ color: "#6b7280", fontSize: "0.8rem", margin: "0.2rem 0 0.8rem" }}>Changes the layout and style of your website. Your content, services and colours stay the same.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
-          {DESIGNS.map((d) => {
+          {DESIGNS.filter(d => d.key !== 'danfe' || getTenantId() === '758794a2-6df0-4150-b160-4ab5cc7ae0ee').map((d) => {
             const selected = (form.design ?? "modern") === d.key;
             return (
               <button

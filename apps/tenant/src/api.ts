@@ -20,6 +20,10 @@ export function isStaffOnly(): boolean {
   return getRole() === "staff";
 }
 
+export function getTenantId(): string | null {
+  try { const payload = getToken()?.split('.')[1]; if (!payload) return null; const parsed = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))); return typeof parsed.tenant_id === 'string' ? parsed.tenant_id : null; } catch { return null; }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -177,7 +181,7 @@ export interface SiteContent {
   gallery?: string[];
   testimonials?: Array<{ name: string; quote: string }>;
   languages?: Array<"en" | "ar">;
-  design?: "modern" | "elegant" | "bold";
+  design?: "modern" | "elegant" | "bold" | "danfe";
 }
 export interface Site {
   id: string;
@@ -236,6 +240,7 @@ export const api = {
     const qs = params ? "?" + new URLSearchParams(params as Record<string, string>).toString() : "";
     return request<{ bookings: Booking[] }>(`/api/bookings${qs}`);
   },
+  customerBookingLink: (id: string) => request<{ url: string; expiresInDays: number }>(`/api/bookings/${id}/customer-link`, { method: 'POST' }),
   updateBookingStatus: (id: string, status: Booking["status"]) => request<{ ok: boolean; invoiceId?: string }>(`/api/bookings/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
   assignStaff: (bookingId: string, staffId: string) => request(`/api/bookings/${bookingId}/assign-staff`, { method: "PATCH", body: JSON.stringify({ staff_id: staffId }) }),
   availableStaff: (params: { area?: string; start: string; end: string }) => {

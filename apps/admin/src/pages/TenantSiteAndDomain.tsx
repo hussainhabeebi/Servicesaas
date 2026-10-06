@@ -85,6 +85,11 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
   return (
     <div>
       <h3 style={{ marginTop: "2rem", fontSize: "1rem" }}>Website</h3>
+      {tenantId === '758794a2-6df0-4150-b160-4ab5cc7ae0ee' && <div style={{ padding: 16, background: '#f9eef3', borderRadius: 12 }}>
+        <strong>Danfe booking website</strong>
+        <p>Connect the branded website to this account and add AED 25/hour and AED 35/hour cleaning packages. Existing services are preserved. Review the Website draft and publish it to enable the connection.</p>
+        <button disabled={busy} onClick={async () => { setBusy(true); try { const result = await api.connectDanfe(tenantId); setStatus(result.message); load(); } catch (error) { setStatus(String(error)); } finally { setBusy(false); } }}>Connect Danfe website</button>
+      </div>}
       {site && (
         <>
           <p style={{ color: "#6b7280", fontSize: "0.82rem", marginTop: "-0.5rem" }}>
@@ -99,6 +104,7 @@ export function TenantSiteAndDomain({ tenantId }: { tenantId: string }) {
             <option value="modern">Modern</option>
             <option value="elegant">Elegant</option>
             <option value="bold">Bold</option>
+            {tenantId === '758794a2-6df0-4150-b160-4ab5cc7ae0ee' && <option value="danfe">Danfe booking app</option>}
           </select>
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem" }}>
             <button disabled={busy} onClick={saveDraft}>
