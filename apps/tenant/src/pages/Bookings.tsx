@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type Booking, type Staff } from "../api";
+import { api, getTenantId, isStaffOnly, type Booking, type Staff } from "../api";
 import { pageTitle, table, th, td, Badge, STATUS_COLORS, btn } from "../ui";
 
 const NEXT_STATUS: Record<Booking["status"], Booking["status"] | null> = {
@@ -64,6 +64,8 @@ export function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [customerLinks, setCustomerLinks] = useState<Record<string, string>>({});
+  const danfeAccount = getTenantId() === '758794a2-6df0-4150-b160-4ab5cc7ae0ee' && !isStaffOnly();
 
   const load = () => {
     api.bookings().then((r) => setBookings(r.bookings)).catch((e) => setError(String(e)));
@@ -111,6 +113,7 @@ export function BookingsPage() {
                 </td>
                 <td style={td}>{b.source}</td>
                 <td style={td}>
+                  {danfeAccount && <div><button style={btn} onClick={async () => { try { const result = await api.customerBookingLink(b.id); setCustomerLinks(links => ({ ...links, [b.id]: result.url })); } catch (error) { setError(String(error)); } }}>Get customer booking link</button>{customerLinks[b.id] && <label style={{ display: 'block', fontSize: 12 }}>Private link · expires in 7 days<input aria-label="Private customer booking link" readOnly value={customerLinks[b.id]} style={{ display: 'block', maxWidth: 220 }} onFocus={event => event.target.select()} /></label>}</div>}
                   {NEXT_STATUS[b.status] && (
                     <button style={btn} onClick={() => advance(b)}>
                       Mark {NEXT_STATUS[b.status]?.replace("_", " ")}

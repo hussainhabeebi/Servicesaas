@@ -8,6 +8,8 @@ import { renderLandingPage } from "./templates/landing";
 import { renderPrivacyPolicy, renderTermsOfService } from "./templates/legal";
 import { renderManifest, SERVICE_WORKER_JS } from "./pwa";
 import { OG_IMAGE_BASE64, SQUARE_LOGO_BASE64 } from "./assets/logo";
+import { handleDanfeRequest, isDanfeHost } from "./danfe/handler";
+import { DANFE_TENANT_ID, getDanfeRuntime, proxyDanfeBooking } from './danfe/connection';
 
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -17,6 +19,18 @@ function base64ToBytes(base64: string): Uint8Array {
 }
 
 const app = new Hono<AppContext>();
+
+// The Danfe company site has its own pages and assets. All other platform
+// marketing domains and tenant sites retain their existing resolution flow.
+app.use("*", async (c, next) => {
+  if (isDanfeHost(new URL(c.req.url).hostname)) {
+    if (new URL(c.req.url).pathname.startsWith('/booking-api/')) return proxyDanfeBooking(c.req.raw, c.env);
+    if (/^\/(assets\/|robots\.txt$|sitemap\.xml$|manifest\.webmanifest$)/.test(new URL(c.req.url).pathname)) return handleDanfeRequest(c.req.raw);
+    const { runtime } = await getDanfeRuntime(c.env);
+    return handleDanfeRequest(c.req.raw, runtime);
+  }
+  return next();
+});
 
 // The bare apex domain (and www.) is the product's own marketing page, not
 // a tenant — handled before tenant host resolution so it never hits the
@@ -77,6 +91,11 @@ app.get("*", async (c) => {
 
   const isPreview = c.req.query("preview") === "1";
   const content = ((isPreview ? site.draft_content : site.live_content ?? site.draft_content) ?? {}) as SiteContent;
+  if (tenantId === DANFE_TENANT_ID && content.design === 'danfe') {
+    if (new URL(c.req.url).pathname.startsWith('/booking-api/')) return proxyDanfeBooking(c.req.raw, c.env);
+    const { runtime } = await getDanfeRuntime(c.env);
+    return handleDanfeRequest(c.req.raw, isPreview ? { ...runtime, content, connected: false } : runtime);
+  }
 
   const services = await db
     .select({ id: schema.services.id, name: schema.services.name, category: schema.services.category, description: schema.services.description, price: schema.services.price, duration_minutes: schema.services.duration_minutes })

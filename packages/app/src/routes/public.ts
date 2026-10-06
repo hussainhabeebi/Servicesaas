@@ -9,6 +9,8 @@ import { findAvailableStaff } from "../lib/staff-matching";
 import { createAndSendDepositInvoice } from "../lib/deposits";
 import { getRebookSuggestion, getAddOnSuggestions, getBestSlots } from "../lib/suggestions";
 import { geminiConciergeReply } from "../lib/gemini";
+import { issueBookingAccess } from "../lib/booking-access";
+import { publicBookingPortal } from "./public-booking-portal";
 
 /**
  * Unauthenticated storefront endpoints for the tenant's website booking
@@ -17,6 +19,17 @@ import { geminiConciergeReply } from "../lib/gemini";
  * aren't logged in.
  */
 export const publicRoute = new Hono<AppContext>();
+publicRoute.route('/', publicBookingPortal);
+
+publicRoute.get('/storefront', async c => {
+  const db = createDb(c.env.DB);
+  const tenantId = c.get('tenantId');
+  const [tenant] = await db.select({ business_name: schema.tenants.business_name, currency: schema.tenants.currency, address: schema.tenants.address, phone: schema.tenants.whatsapp_number }).from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
+  const [site] = await db.select({ content: schema.sites.live_content }).from(schema.sites).where(eq(schema.sites.tenant_id, tenantId)).limit(1);
+  const services = await db.select({ id: schema.services.id, name: schema.services.name, category: schema.services.category, price: schema.services.price, duration_minutes: schema.services.duration_minutes, description: schema.services.description }).from(schema.services).where(and(eq(schema.services.tenant_id, tenantId), eq(schema.services.active, true)));
+  c.header('Cache-Control', 'no-store');
+  return c.json({ business: tenant, content: site?.content ?? {}, services });
+});
 
 publicRoute.get("/services", async (c) => {
   const db = createDb(c.env.DB);
@@ -41,22 +54,23 @@ publicRoute.get("/quote", async (c) => {
 
 const bookingSchema = z.object({
   service_id: z.string(),
-  customer_name: z.string().min(1),
-  customer_phone: z.string().min(6),
+  customer_name: z.string().trim().min(1).max(120),
+  customer_phone: z.string().trim().regex(/^\+?[0-9 ()-]{6,24}$/),
   customer_email: z.string().email().optional(),
-  address_line: z.string().optional(),
-  area: z.string().optional(),
-  scheduled_start: z.string(),
+  address_line: z.string().trim().max(300).optional(),
+  area: z.string().trim().max(120).optional(),
+  scheduled_start: z.string().datetime({ offset: true }).refine(value => Date.parse(value) > Date.now(), 'Choose a future booking time'),
 });
 
 publicRoute.post("/bookings", async (c) => {
-  const parsed = bookingSchema.safeParse(await c.req.json());
+  if (!c.env.JWT_SECRET) return c.json({ error: 'Online booking is not configured. Please contact the team.' }, 503);
+  const parsed = bookingSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
-  const input = parsed.data;
+  const input = { ...parsed.data, customer_phone: parsed.data.customer_phone.replace(/[ ()-]/g, '') };
   const tenantId = c.get("tenantId");
   const db = createDb(c.env.DB);
 
-  const [service] = await db.select().from(schema.services).where(and(eq(schema.services.id, input.service_id), eq(schema.services.tenant_id, tenantId))).limit(1);
+  const [service] = await db.select().from(schema.services).where(and(eq(schema.services.id, input.service_id), eq(schema.services.tenant_id, tenantId), eq(schema.services.active, true))).limit(1);
   if (!service) return c.json({ error: "Service not found" }, 404);
 
   const [existingCustomer] = await db.select({ id: schema.customers.id }).from(schema.customers).where(and(eq(schema.customers.tenant_id, tenantId), eq(schema.customers.phone, input.customer_phone))).limit(1);
@@ -110,7 +124,9 @@ publicRoute.post("/bookings", async (c) => {
 
   const deposit = await createAndSendDepositInvoice(c.env, tenantId, { bookingId, customerId, service }).catch(() => ({ ok: false as const }));
 
-  return c.json({ id: bookingId, scheduled_start: start, scheduled_end: end, depositRequired: deposit.ok ? deposit.amount : null }, 201);
+  const accessToken = await issueBookingAccess(tenantId, bookingId, c.env.JWT_SECRET);
+  c.header('Cache-Control', 'no-store');
+  return c.json({ id: bookingId, accessToken, status: 'scheduled', staffingPending: autoAssignFailed, scheduled_start: start, scheduled_end: end, depositRequired: deposit.ok ? deposit.amount : null }, 201);
 });
 
 // --- Suggestions (customer-facing) -----------------------------------------

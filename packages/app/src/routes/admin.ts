@@ -11,6 +11,23 @@ import { listDomains, addDomain, addManualDomain, markManualDomainActive, checkD
 /** Cross-tenant ops endpoints for the internal /admin dashboard. Callers must hold a valid admin JWT (see index.ts wiring). */
 export const adminRoute = new Hono<AppContext>();
 
+adminRoute.post('/tenants/:id/danfe/connect', async c => {
+  const tenantId = c.req.param('id');
+  if (tenantId !== '758794a2-6df0-4150-b160-4ab5cc7ae0ee') return c.json({ error: 'This company website belongs to the Danfe account.' }, 403);
+  const db = createDb(c.env.DB);
+  const [tenant] = await db.select({ status: schema.tenants.status, currency: schema.tenants.currency }).from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
+  if (!tenant || tenant.status !== 'active') return c.json({ error: 'Activate the Danfe business account first.' }, 409);
+  if (tenant.currency !== 'AED') return c.json({ error: 'Set this UAE business account currency to AED before adding cleaning packages.' }, 409);
+  for (const materials of [false, true]) for (let hours = 1; hours <= 8; hours++) {
+    await db.insert(schema.services).values({ id: `danfe-${tenantId}-${materials ? 'materials' : 'normal'}-${hours}`, tenant_id: tenantId, name: `${materials ? 'Cleaning with materials' : 'Normal cleaning'} · ${hours} hour${hours === 1 ? '' : 's'}`, category: materials ? 'danfe_materials' : 'danfe_normal', price: hours * (materials ? 35 : 25), duration_minutes: hours * 60, description: 'Normal hourly cleaning for one cleaner. Confirm location, scope and access with the team.' }).onConflictDoNothing();
+  }
+  const site = await getSite(db, tenantId);
+  if (!site) await db.insert(schema.sites).values({ id: crypto.randomUUID(), tenant_id: tenantId, template_key: 'cleaning', draft_content: { businessName: 'Our Danfe Cleaning Company', design: 'danfe' }, sections_enabled: ['pricing', 'service_area_map'] });
+  else await updateSite(db, tenantId, { content: { design: 'danfe' }, template_key: 'cleaning' });
+  await db.insert(schema.adminAuditLog).values({ id: crypto.randomUUID(), admin_user_id: c.get('adminUserId')!, action: 'edit_tenant_site', target_tenant_id: tenantId, detail: 'Connected Danfe website and cleaning service packages' });
+  return c.json({ ok: true, message: 'Danfe services are connected. Review and publish the Website draft to enable online bookings; deploy the website and API code before going live.' });
+});
+
 adminRoute.get("/tenants", async (c) => {
   const db = createDb(c.env.DB);
   const rows = await db.select().from(schema.tenants).orderBy(desc(schema.tenants.created_at));

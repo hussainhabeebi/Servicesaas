@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:danfe": "node --test tests/booking-connection.test.mjs",
     "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
     "deploy:staging": "wrangler deploy --env staging",
