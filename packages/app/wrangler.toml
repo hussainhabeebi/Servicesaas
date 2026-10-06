@@ -1,4 +1,4 @@
-name = "serviceos-app"
+name = "servicesaas"
 main = "src/index.ts"
 compatibility_date = "2024-09-25"
 compatibility_flags = ["nodejs_compat"]
@@ -36,7 +36,7 @@ crons = ["0 20 * * *"]
 
 # --- Production ----------------------------------------------------------
 [env.production]
-name = "serviceos-app-production"
+name = "servicesaas"
 vars = { ENVIRONMENT = "production", ROOT_DOMAIN = "servbazaar.com", CHATWOOT_BASE_URL = "https://app.aiingo.com", CHATWOOT_AGENT_BOT_ID = "REPLACE_WITH_CHATWOOT_AGENT_BOT_ID", META_APP_ID = "REPLACE_WITH_META_APP_ID", META_EMBEDDED_SIGNUP_CONFIG_ID = "REPLACE_WITH_META_EMBEDDED_SIGNUP_CONFIG_ID", GEMINI_MODEL = "gemini-2.0-flash" }
 
 [[env.production.d1_databases]]

@@ -1,4 +1,4 @@
-name = "servbazaar-admin"
+name = "admin"
 compatibility_date = "2024-09-25"
 
 # Pure static SPA — no Worker code, just serves the Vite build output.
