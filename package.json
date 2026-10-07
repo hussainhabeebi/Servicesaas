@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "ServiceOS — multi-tenant booking + billing + website + WhatsApp SaaS for local service businesses",
   "scripts": {
+    "test:portals": "node scripts/test-portals.mjs",
     "build": "pnpm -r --filter=./packages/** build",
     "dev:app": "pnpm --filter @serviceos/app dev",
     "dev:site": "pnpm --filter @serviceos/site-engine dev",

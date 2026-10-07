@@ -20,6 +20,7 @@ tasksRoute.get("/", async (c) => {
   const db = createDb(c.env.DB);
   const { status } = c.req.query();
   const conditions = [eq(schema.tasks.tenant_id, c.get("tenantId"))];
+  if (c.get("tenantRole") === "staff") conditions.push(eq(schema.tasks.assigned_staff_id, c.get("staffId")!));
   if (status) conditions.push(eq(schema.tasks.status, status));
   const rows = await db.select().from(schema.tasks).where(and(...conditions));
   return c.json({ tasks: rows });
@@ -36,10 +37,12 @@ tasksRoute.post("/", async (c) => {
 
 tasksRoute.patch("/:id/done", async (c) => {
   const db = createDb(c.env.DB);
+  const conditions = [eq(schema.tasks.id, c.req.param("id")), eq(schema.tasks.tenant_id, c.get("tenantId"))];
+  if (c.get("tenantRole") === "staff") conditions.push(eq(schema.tasks.assigned_staff_id, c.get("staffId")!));
   await db
     .update(schema.tasks)
     .set({ status: "done" })
-    .where(and(eq(schema.tasks.id, c.req.param("id")), eq(schema.tasks.tenant_id, c.get("tenantId"))));
+    .where(and(...conditions));
   return c.json({ ok: true });
 });
 

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { MiddlewareHandler } from "hono";
 import type { AppContext } from "../types/env";
 import { verifyAccessToken, verifyAdminAccessToken } from "./jwt";
@@ -24,6 +24,17 @@ export function requireAuth(...allowedRoles: Array<"owner" | "staff" | "admin">)
     }
     if (allowedRoles.length > 0 && !allowedRoles.includes(claims.role)) {
       return c.json({ error: "Insufficient role" }, 403);
+    }
+
+    const db = createDb(c.env.DB);
+    const [user] = await db.select().from(schema.tenantUsers).where(and(eq(schema.tenantUsers.id, claims.sub), eq(schema.tenantUsers.tenant_id, claims.tenant_id))).limit(1);
+    const [tenant] = await db.select({ status: schema.tenants.status }).from(schema.tenants).where(eq(schema.tenants.id, claims.tenant_id)).limit(1);
+    if (!user?.active || tenant?.status !== "active" || user.role !== claims.role || (user.staff_id ?? undefined) !== claims.staff_id) return c.json({ error: "Account is not active" }, 403);
+    if ((claims.version ?? 0) !== user.session_version) return c.json({ error: "Please log in again" }, 401);
+    if (claims.role === "staff") {
+      if (!claims.staff_id) return c.json({ error: "Login is not linked to staff" }, 403);
+      const [staff] = await db.select({ active: schema.staff.active }).from(schema.staff).where(and(eq(schema.staff.id, claims.staff_id), eq(schema.staff.tenant_id, claims.tenant_id))).limit(1);
+      if (!staff?.active) return c.json({ error: "Staff account is not active" }, 403);
     }
 
     c.set("tenantId", claims.tenant_id);

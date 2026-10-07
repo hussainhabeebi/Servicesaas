@@ -113,11 +113,26 @@ const SLOT_STEP_MINUTES = 30;
 // learned one, since there's no per-tenant booking-density history to rank on yet.
 const PREFERRED_HOURS = [10, 11, 14, 15];
 
+/** Convert business-local wall time to UTC without depending on the Worker's timezone. */
+export function businessLocalTime(dateIso: string, minutes: number, timezone: string): Date | null {
+  const [year, month, day] = dateIso.split("-").map(Number);
+  const target = Date.UTC(year!, month! - 1, day!, Math.floor(minutes / 60), minutes % 60);
+  let instant = target;
+  const format = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  for (let i = 0; i < 3; i++) {
+    const parts = Object.fromEntries(format.formatToParts(new Date(instant)).map(p => [p.type, p.value]));
+    const shown = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
+    if (shown === target) return new Date(instant);
+    instant += target - shown;
+  }
+  return null; // A nonexistent daylight-saving wall time is not bookable.
+}
+
 /** Ranks bookable slots for a given local day so the booking widget can highlight a few good options instead of a flat calendar. */
 export async function getBestSlots(
   db: ReturnType<typeof createDb>,
   tenantId: string,
-  params: { serviceId: string; dateIso: string; timezone: string } // dateIso: "YYYY-MM-DD"
+  params: { serviceId: string; dateIso: string; timezone: string; area?: string } // dateIso: "YYYY-MM-DD"
 ): Promise<SlotSuggestion[]> {
   const [service] = await db.select({ duration_minutes: schema.services.duration_minutes }).from(schema.services).where(and(eq(schema.services.id, params.serviceId), eq(schema.services.tenant_id, tenantId))).limit(1);
   if (!service) return [];
@@ -128,8 +143,8 @@ export async function getBestSlots(
   const [startH, startM] = DAY_START_HHMM.split(":").map(Number);
   const [endH, endM] = DAY_END_HHMM.split(":").map(Number);
   for (let mins = startH! * 60 + startM!; mins + service.duration_minutes <= endH! * 60 + endM!; mins += SLOT_STEP_MINUTES) {
-    const start = new Date(`${params.dateIso}T00:00:00`);
-    start.setMinutes(start.getMinutes() + mins);
+    const start = businessLocalTime(params.dateIso, mins, params.timezone);
+    if (!start || start.getTime() <= Date.now()) continue;
     const end = new Date(start.getTime() + service.duration_minutes * 60_000);
     candidates.push({ start, end });
   }
@@ -137,7 +152,7 @@ export async function getBestSlots(
   const results: SlotSuggestion[] = [];
   if (anyStaff) {
     for (const slot of candidates) {
-      const staff = await findAvailableStaff(db, tenantId, { start: slot.start.toISOString(), end: slot.end.toISOString(), timezone: params.timezone });
+      const staff = await findAvailableStaff(db, tenantId, { area: params.area, start: slot.start.toISOString(), end: slot.end.toISOString(), timezone: params.timezone });
       if (staff.length === 0) continue;
       results.push({ start: slot.start.toISOString(), recommended: false });
     }
@@ -159,7 +174,7 @@ export async function getBestSlots(
   // Mark a handful of off-peak, bookable slots as recommended.
   let marked = 0;
   for (const r of results) {
-    const hour = new Date(r.start).getHours();
+    const hour = Number(localDayAndTime(r.start, params.timezone).hhmm.split(":")[0]);
     if (PREFERRED_HOURS.includes(hour) && marked < 3) {
       r.recommended = true;
       marked++;

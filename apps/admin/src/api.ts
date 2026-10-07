@@ -81,7 +81,7 @@ export interface SiteContent {
   heroText?: string;
   hours?: string;
   phone?: string;
-  design?: "modern" | "elegant" | "bold";
+  design?: "modern" | "elegant" | "bold" | "danfe";
 }
 export interface Site {
   id: string;

@@ -1,4 +1,5 @@
 export * from "./types/env";
+export * from "./danfe";
 export * from "./db/client";
 export * as schema from "./db/schema";
 export * from "./tenant/resolve";

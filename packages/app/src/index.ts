@@ -23,6 +23,9 @@ import { adminRoute } from "./routes/admin";
 import { adminAuthRoute } from "./routes/admin-auth";
 import { adminUsersRoute } from "./routes/admin-users";
 import { publicRoute } from "./routes/public";
+import { customerAuthRoute } from "./routes/customer-auth";
+import { customerPortalRoute } from "./routes/customer-portal";
+import { staffPortalRoute } from "./routes/staff-portal";
 import { tasksRoute } from "./routes/tasks";
 import { referralsRoute } from "./routes/referrals";
 import { vendorBillsRoute } from "./routes/vendor-bills";
@@ -52,12 +55,36 @@ app.route("/webhooks/payments", paymentsWebhookRoute);
 // that call it, so the real Host header here is never the storefront's.
 const publicApp = new Hono<AppContext>();
 publicApp.use("*", publicSiteResolutionMiddleware());
+publicApp.route("/staff-auth", authRoute);
 publicApp.route("/", publicRoute);
 app.route("/public", publicApp);
+
+const customerApp = new Hono<AppContext>();
+customerApp.use("*", publicSiteResolutionMiddleware());
+customerApp.route("/auth", customerAuthRoute);
+customerApp.route("/", customerPortalRoute);
+app.route("/customer", customerApp);
+
+const staffPortal = new Hono<AppContext>();
+staffPortal.use("*", publicSiteResolutionMiddleware());
+staffPortal.use("*", requireAuth("staff"));
+staffPortal.route("/", staffPortalRoute);
+app.route("/staff-portal", staffPortal);
 
 // --- Authenticated tenant business routes: tenant resolved from the JWT ----
 const api = new Hono<AppContext>();
 api.use("*", requireAuth());
+// Staff access is enforced at the API, as well as in the navigation.
+api.use("*", async (c, next) => {
+  if (c.get("tenantRole") !== "staff") return next();
+  const path = c.req.path;
+  const method = c.req.method;
+  const allowed = (method === "GET" && ["/api/bookings/mine", "/api/customers", "/api/services", "/api/tasks"].includes(path.replace(/\/$/, "")))
+    || (method === "POST" && /^\/api\/bookings\/[^/]+\/(checkin|checkout|status)$/.test(path))
+    || (method === "PATCH" && /^\/api\/tasks\/[^/]+\/done$/.test(path));
+  if (!allowed) return c.json({ error: "Owner access required" }, 403);
+  await next();
+});
 api.route("/services", servicesRoute);
 api.route("/staff", staffRoute);
 api.route("/customers", customersRoute);

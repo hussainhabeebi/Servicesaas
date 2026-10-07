@@ -9,6 +9,7 @@ import { findAvailableStaff } from "../lib/staff-matching";
 import { createAndSendDepositInvoice } from "../lib/deposits";
 import { getRebookSuggestion, getAddOnSuggestions, getBestSlots } from "../lib/suggestions";
 import { geminiConciergeReply } from "../lib/gemini";
+import { requireCustomerAuth } from "./customer-auth";
 
 /**
  * Unauthenticated storefront endpoints for the tenant's website booking
@@ -21,7 +22,7 @@ export const publicRoute = new Hono<AppContext>();
 publicRoute.get("/services", async (c) => {
   const db = createDb(c.env.DB);
   const rows = await db
-    .select({ id: schema.services.id, name: schema.services.name, category: schema.services.category, duration_minutes: schema.services.duration_minutes, price: schema.services.price, description: schema.services.description })
+    .select({ id: schema.services.id, name: schema.services.name, category: schema.services.category, duration_minutes: schema.services.duration_minutes, price: schema.services.price, description: schema.services.description, recurrence_options: schema.services.recurrence_options, deposit_type: schema.services.deposit_type, deposit_value: schema.services.deposit_value })
     .from(schema.services)
     .where(and(eq(schema.services.tenant_id, c.get("tenantId")), eq(schema.services.active, true)));
   return c.json({ services: rows });
@@ -36,7 +37,8 @@ publicRoute.get("/quote", async (c) => {
   const [service] = await db.select().from(schema.services).where(and(eq(schema.services.id, serviceId), eq(schema.services.tenant_id, c.get("tenantId")))).limit(1);
   if (!service) return c.json({ error: "Service not found" }, 404);
   const estimate = Math.round(service.price * Math.max(0.5, Math.min(sizeMultiplier, 5)) * 100) / 100;
-  return c.json({ estimate, currency: "AED", durationMinutes: service.duration_minutes });
+  const [tenant] = await db.select({ currency: schema.tenants.currency }).from(schema.tenants).where(eq(schema.tenants.id, c.get("tenantId"))).limit(1);
+  return c.json({ estimate, currency: tenant?.currency ?? "AED", durationMinutes: service.duration_minutes });
 });
 
 const bookingSchema = z.object({
@@ -115,12 +117,11 @@ publicRoute.post("/bookings", async (c) => {
 
 // --- Suggestions (customer-facing) -----------------------------------------
 
-/** Rebook nudge for a returning customer — the widget calls this with the phone number remembered locally from a previous booking. */
-publicRoute.get("/suggestions/rebook", async (c) => {
-  const phone = c.req.query("phone");
-  if (!phone) return c.json({ suggestion: null });
+/** Account-scoped rebook nudge — a phone query cannot expose another customer's history. */
+publicRoute.get("/suggestions/rebook", requireCustomerAuth, async (c) => {
   const db = createDb(c.env.DB);
-  const suggestion = await getRebookSuggestion(db, c.get("tenantId"), phone);
+  const [customer] = await db.select({ phone: schema.customers.phone }).from(schema.customers).where(and(eq(schema.customers.id, c.get("customerId")!), eq(schema.customers.tenant_id, c.get("tenantId")))).limit(1);
+  const suggestion = customer ? await getRebookSuggestion(db, c.get("tenantId"), customer.phone) : null;
   return c.json({ suggestion });
 });
 
@@ -139,10 +140,11 @@ publicRoute.get("/suggestions/best-slots", async (c) => {
   const serviceId = c.req.query("service_id");
   const date = c.req.query("date"); // YYYY-MM-DD
   if (!serviceId || !date) return c.json({ error: "service_id and date are required" }, 400);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T12:00:00Z`)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date) return c.json({ error: "Invalid date" }, 400);
   const db = createDb(c.env.DB);
   const tenantId = c.get("tenantId");
   const [tenant] = await db.select({ timezone: schema.tenants.timezone }).from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
-  const slots = await getBestSlots(db, tenantId, { serviceId, dateIso: date, timezone: tenant?.timezone ?? "Asia/Dubai" });
+  const slots = await getBestSlots(db, tenantId, { serviceId, dateIso: date, timezone: tenant?.timezone ?? "Asia/Dubai", area: c.req.query("area") });
   return c.json({ slots });
 });
 
@@ -185,21 +187,17 @@ publicRoute.get("/push/vapid-public-key", (c) => c.json({ publicKey: c.env.VAPID
 const pushSubscribeSchema = z.object({
   endpoint: z.string().url(),
   keys: z.object({ p256dh: z.string(), auth: z.string() }),
-  customer_phone: z.string().optional(), // links the subscription to a known customer for targeted reminders, when available
+  customer_phone: z.string().optional(), // compatibility only; identity always comes from the customer session
 });
 
-publicRoute.post("/push/subscribe", async (c) => {
+publicRoute.post("/push/subscribe", requireCustomerAuth, async (c) => {
   const parsed = pushSubscribeSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const input = parsed.data;
   const tenantId = c.get("tenantId");
   const db = createDb(c.env.DB);
 
-  let customerId: string | undefined;
-  if (input.customer_phone) {
-    const [customer] = await db.select({ id: schema.customers.id }).from(schema.customers).where(and(eq(schema.customers.tenant_id, tenantId), eq(schema.customers.phone, input.customer_phone))).limit(1);
-    customerId = customer?.id;
-  }
+  const customerId = c.get("customerId")!;
 
   const [existing] = await db.select({ id: schema.pushSubscriptions.id }).from(schema.pushSubscriptions).where(and(eq(schema.pushSubscriptions.tenant_id, tenantId), eq(schema.pushSubscriptions.endpoint, input.endpoint))).limit(1);
   if (existing) {

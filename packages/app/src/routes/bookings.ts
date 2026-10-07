@@ -68,6 +68,12 @@ async function staffCanActOnBooking(c: Context<AppContext>, db: ReturnType<typeo
   return !!booking && booking.staff_id === c.get("staffId");
 }
 
+async function staffTransitionAllowed(c: Context<AppContext>, db: ReturnType<typeof createDb>, bookingId: string, target: string) {
+  if (c.get("tenantRole") !== "staff") return true;
+  const [booking] = await db.select({ status: schema.bookings.status }).from(schema.bookings).where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, c.get("tenantId")), eq(schema.bookings.staff_id, c.get("staffId")!))).limit(1);
+  return !!booking && ((target === "en_route" && booking.status === "scheduled") || (target === "in_progress" && ["scheduled", "en_route"].includes(booking.status)) || (target === "completed" && booking.status === "in_progress"));
+}
+
 function addRecurrence(dateIso: string, rule: "weekly" | "biweekly" | "monthly"): string {
   const date = new Date(dateIso);
   if (rule === "weekly") date.setUTCDate(date.getUTCDate() + 7);
@@ -80,6 +86,7 @@ bookingsRoute.get("/", async (c) => {
   const db = createDb(c.env.DB);
   const { staff_id, from, to, status } = c.req.query();
   const conditions = [eq(schema.bookings.tenant_id, c.get("tenantId"))];
+  if (c.get("customerId")) conditions.push(eq(schema.bookings.customer_id, c.get("customerId")!));
   if (staff_id) conditions.push(eq(schema.bookings.staff_id, staff_id));
   if (status) conditions.push(eq(schema.bookings.status, status));
   if (from) conditions.push(gte(schema.bookings.scheduled_start, from));
@@ -128,15 +135,36 @@ bookingsRoute.post("/", async (c) => {
   const parsed = createSchema.safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const input = parsed.data;
+  if (c.get("customerId")) {
+    input.customer_id = c.get("customerId")!;
+    input.staff_id = undefined;
+    input.source = "website";
+  }
   const tenantId = c.get("tenantId");
   const db = createDb(c.env.DB);
 
-  const { area, staffId, autoAssignFailed } = await resolveAreaAndStaff(db, tenantId, input);
   const [service] = await db
-    .select({ id: schema.services.id, name: schema.services.name, price: schema.services.price, deposit_type: schema.services.deposit_type, deposit_value: schema.services.deposit_value })
+    .select()
     .from(schema.services)
-    .where(eq(schema.services.id, input.service_id))
+    .where(and(eq(schema.services.id, input.service_id), eq(schema.services.tenant_id, tenantId), eq(schema.services.active, true)))
     .limit(1);
+  if (!service) return c.json({ error: "Service not found" }, 404);
+  const [customer] = await db.select({ id: schema.customers.id }).from(schema.customers).where(and(eq(schema.customers.id, input.customer_id), eq(schema.customers.tenant_id, tenantId))).limit(1);
+  if (!customer) return c.json({ error: "Customer not found" }, 404);
+  if (input.address_id) {
+    const [address] = await db.select({ id: schema.customerAddresses.id }).from(schema.customerAddresses).where(and(eq(schema.customerAddresses.id, input.address_id), eq(schema.customerAddresses.tenant_id, tenantId), eq(schema.customerAddresses.customer_id, input.customer_id))).limit(1);
+    if (!address) return c.json({ error: "Address not found" }, 404);
+  }
+  if (c.get("customerId")) {
+    if (!input.address_id) return c.json({ error: "Please save and select an address" }, 400);
+    if (input.recurrence_rule && !(service.recurrence_options ?? []).includes(input.recurrence_rule)) return c.json({ error: "Recurring booking is not offered for this service" }, 400);
+    const timestamp = Date.parse(input.scheduled_start);
+    if (!Number.isFinite(timestamp) || timestamp <= Date.now()) return c.json({ error: "Choose a future date" }, 400);
+    input.scheduled_start = new Date(timestamp).toISOString();
+    input.scheduled_end = new Date(timestamp + service.duration_minutes * 60000).toISOString();
+  }
+  if (!Number.isFinite(Date.parse(input.scheduled_start)) || !Number.isFinite(Date.parse(input.scheduled_end)) || Date.parse(input.scheduled_end) <= Date.parse(input.scheduled_start)) return c.json({ error: "Invalid booking dates" }, 400);
+  const { area, staffId, autoAssignFailed } = await resolveAreaAndStaff(db, tenantId, input);
 
   const created: Array<{ id: string; scheduled_start: string; scheduled_end: string }> = [];
   let start = input.scheduled_start;
@@ -149,7 +177,7 @@ bookingsRoute.post("/", async (c) => {
     const reserve = await reserveSlot(c.env, tenantId, staffId, bookingId, start, end);
     if (!reserve.ok) {
       return c.json(
-        { error: "Slot conflicts with an existing booking", conflictBookingId: reserve.conflictBookingId, failedAtOccurrence: i },
+        { error: "Slot conflicts with an existing booking", failedAtOccurrence: i, bookings: created },
         409
       );
     }
@@ -201,6 +229,13 @@ bookingsRoute.patch("/:id/reschedule", async (c) => {
     .limit(1);
   if (!booking) return c.json({ error: "Not found" }, 404);
 
+  if (!["scheduled", "en_route"].includes(booking.status)) return c.json({ error: "This booking can no longer be changed" }, 409);
+  const start = Date.parse(parsed.data.scheduled_start);
+  const end = Date.parse(parsed.data.scheduled_end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || (c.get("customerId") && (start <= Date.now() || end - start !== Date.parse(booking.scheduled_end) - Date.parse(booking.scheduled_start)))) return c.json({ error: "Invalid booking dates or duration" }, 400);
+  parsed.data.scheduled_start = new Date(start).toISOString();
+  parsed.data.scheduled_end = new Date(end).toISOString();
+
   if (booking.staff_id) {
     const doId = bookingCalendarId(c.env.BOOKING_CALENDAR, tenantId, booking.staff_id);
     const stub = c.env.BOOKING_CALENDAR.get(doId);
@@ -226,11 +261,12 @@ bookingsRoute.post("/:id/cancel", async (c) => {
   const bookingId = c.req.param("id");
 
   const [booking] = await db
-    .select({ id: schema.bookings.id, staff_id: schema.bookings.staff_id, scheduled_start: schema.bookings.scheduled_start, service_id: schema.bookings.service_id })
+    .select({ id: schema.bookings.id, status: schema.bookings.status, staff_id: schema.bookings.staff_id, scheduled_start: schema.bookings.scheduled_start, service_id: schema.bookings.service_id })
     .from(schema.bookings)
     .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)))
     .limit(1);
   if (!booking) return c.json({ error: "Not found" }, 404);
+  if (!["scheduled", "en_route"].includes(booking.status)) return c.json({ error: "This booking can no longer be cancelled" }, 409);
 
   const hoursUntil = (new Date(booking.scheduled_start).getTime() - Date.now()) / 3_600_000;
   let cancellationFee = 0;
@@ -293,6 +329,7 @@ bookingsRoute.post("/:id/status", async (c) => {
   const tenantId = c.get("tenantId");
   const bookingId = c.req.param("id");
   if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
+  if (!(await staffTransitionAllowed(c, db, bookingId, parsed.data.status))) return c.json({ error: "Invalid job transition" }, 409);
   await recordCompletionIfNew(db, tenantId, bookingId, parsed.data.status);
   await db
     .update(schema.bookings)
@@ -315,6 +352,7 @@ bookingsRoute.post("/:id/checkin", async (c) => {
   const tenantId = c.get("tenantId");
   const bookingId = c.req.param("id");
   if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
+  if (!(await staffTransitionAllowed(c, db, bookingId, "in_progress"))) return c.json({ error: "This job cannot be checked in" }, 409);
   await db
     .update(schema.bookings)
     .set({
@@ -336,6 +374,7 @@ bookingsRoute.post("/:id/checkout", async (c) => {
   const tenantId = c.get("tenantId");
   const bookingId = c.req.param("id");
   if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
+  if (!(await staffTransitionAllowed(c, db, bookingId, "completed"))) return c.json({ error: "Check in before completing this job" }, 409);
   await recordCompletionIfNew(db, tenantId, bookingId, "completed");
   await db
     .update(schema.bookings)

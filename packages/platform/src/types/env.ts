@@ -46,6 +46,8 @@ export interface AppContext {
     tenantUserId?: string;
     tenantRole?: "owner" | "staff" | "admin";
     staffId?: string; // set when the logged-in tenant_user is linked to a staff/crew record (tenant_users.staff_id)
+    customerId?: string;
+    customerAccountId?: string;
     adminUserId?: string;
   };
 }

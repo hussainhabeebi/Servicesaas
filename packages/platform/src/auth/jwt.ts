@@ -7,6 +7,7 @@ export interface AccessTokenClaims {
   tenant_id: string;
   role: "owner" | "staff" | "admin";
   staff_id?: string; // links a staff-role login to its operational staff/crew record — see tenant_users.staff_id
+  version?: number; // omitted legacy tokens are version 0
   exp: number;
   iat: number;
 }
@@ -46,6 +47,7 @@ export async function signAccessToken(
 }
 
 export async function verifyAccessToken(token: string, secret: string): Promise<AccessTokenClaims | null> {
+  try {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [encHeader, encPayload, encSig] = parts;
@@ -58,8 +60,39 @@ export async function verifyAccessToken(token: string, secret: string): Promise<
   );
   if (!valid) return null;
   const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(encPayload!))) as AccessTokenClaims;
-  if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+  if (!payload.sub || !payload.tenant_id || !["owner", "staff", "admin"].includes(payload.role)) return null;
+  if (!Number.isFinite(payload.exp) || payload.exp <= Math.floor(Date.now() / 1000)) return null;
   return payload;
+  } catch { return null; }
+}
+
+export interface CustomerTokenClaims {
+  sub: string;
+  tenant_id: string;
+  customer_id: string;
+  scope: "customer_portal";
+  version: number;
+  exp: number;
+  iat: number;
+}
+
+export async function signCustomerAccessToken(claims: Omit<CustomerTokenClaims, "scope" | "exp" | "iat">, secret: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const input = `${b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${b64url(JSON.stringify({ ...claims, scope: "customer_portal", iat: now, exp: now + 43200 }))}`;
+  return `${input}.${b64url(await crypto.subtle.sign("HMAC", await hmacKey(secret), new TextEncoder().encode(input)))}`;
+}
+
+export async function verifyCustomerAccessToken(token: string, secret: string): Promise<CustomerTokenClaims | null> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [header, body, signature] = parts as [string, string, string];
+    const valid = await crypto.subtle.verify("HMAC", await hmacKey(secret), b64urlDecode(signature) as BufferSource, new TextEncoder().encode(`${header}.${body}`));
+    if (!valid) return null;
+    const claims = JSON.parse(new TextDecoder().decode(b64urlDecode(body))) as CustomerTokenClaims;
+    if (claims.scope !== "customer_portal" || !claims.sub || !claims.customer_id || !claims.tenant_id || !Number.isInteger(claims.version) || !Number.isFinite(claims.exp) || claims.exp <= Math.floor(Date.now() / 1000)) return null;
+    return claims;
+  } catch { return null; }
 }
 
 /**

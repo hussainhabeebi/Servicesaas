@@ -9,7 +9,7 @@ import { createDb, schema } from "@serviceos/platform";
  */
 
 /** Mirrors SITE_DESIGNS in packages/site-engine/src/templates/designs.ts. */
-export const SITE_DESIGN_KEYS = ["modern", "elegant", "bold"] as const;
+export const SITE_DESIGN_KEYS = ["modern", "elegant", "bold", "danfe"] as const;
 
 export interface SiteContentInput {
   businessName?: string;

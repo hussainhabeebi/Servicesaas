@@ -1,6 +1,7 @@
 /** Auto-SEO (spec §8): sitemap.xml generated from the tenant's live site sections; submission to Search Console happens on domain verification (see app/routes/domains.ts). */
-export function renderSitemap(host: string, sections: string[]): string {
-  const urls = ["", ...sections.map((s) => `#${s}`)];
+export function renderSitemap(host: string, sections: string[], servicePaths: string[] = []): string {
+  // Fragment sections are not separate indexable documents; account pages stay out of the sitemap.
+  const urls = ["", ...servicePaths.map(path => path.replace(/^\//, ""))];
   const entries = urls
     .map(
       (path) => `  <url><loc>https://${host}/${path}</loc><changefreq>weekly</changefreq></url>`
