@@ -3,6 +3,7 @@ main = "src/danfe-worker.ts"
 compatibility_date = "2026-10-06"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+vars = { API_BASE_URL = "https://api.servbazaar.com" }
 
 # Custom domains are activated only on an explicit deployment, after the
 # danfecleaning.com zone and ownership have been confirmed in Cloudflare.
@@ -10,6 +11,11 @@ routes = [
   { pattern = "www.danfecleaning.com", custom_domain = true },
   { pattern = "danfecleaning.com", custom_domain = true }
 ]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "serviceos-production"
+database_id = "01882e3d-806f-4fe2-a163-9dcee6fd0297"
 
 [observability]
 enabled = true
