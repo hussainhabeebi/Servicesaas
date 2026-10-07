@@ -63,7 +63,7 @@ export function renderDanfePage(path: string, preview = false, runtime: DanfeRun
   }
   if (path === '/contact' && (runtime.content?.hours || runtime.content?.address)) html = html.replace('<section class="section">', `<section class="wrap"><p>${escape(runtime.content.address ?? '')}</p><p>${escape(runtime.content.hours ?? '')}</p></section><section class="section">`);
   html = html.replaceAll('AED 25', 'AED ' + normalRate).replaceAll('AED 35', 'AED ' + materialRate).replaceAll('<small>AED</small> 25', '<small>AED</small> ' + normalRate).replaceAll('<small>AED</small> 35', '<small>AED</small> ' + materialRate);
-  html = html.replace(/Sharjah: AED \\d+\\/hr without materials · AED \\d+\\/hr with materials/g, 'Sharjah: AED 25/hr without materials · AED 35/hr with materials').replace(/Sharjah: AED \\d+\\/hr without materials or AED \\d+\\/hr with materials\\./g, 'Sharjah: AED 25/hr without materials or AED 35/hr with materials.');
+  html = html.replace(/Sharjah: AED \d+\/hr without materials · AED \d+\/hr with materials/g, 'Sharjah: AED 25/hr without materials · AED 35/hr with materials').replace(/Sharjah: AED \d+\/hr without materials or AED \d+\/hr with materials\./g, 'Sharjah: AED 25/hr without materials or AED 35/hr with materials.');
   html = html.replace('<span aria-current="page">Sharjah cleaning</span>', `<span aria-current="page">${label}</span>`);
   return html;
 }
