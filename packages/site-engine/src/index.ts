@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import { createDb, schema, tenantResolutionMiddleware } from "@serviceos/platform";
+import { createDb, schema, tenantResolutionMiddleware, DANFE_PAGES } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { renderSitePage, getTheme, type SiteContent } from "./templates/registry";
 import { renderSitemap, renderRobotsTxt, renderMarketingSitemap } from "./seo";
@@ -8,6 +8,9 @@ import { renderLandingPage } from "./templates/landing";
 import { renderPrivacyPolicy, renderTermsOfService } from "./templates/legal";
 import { renderManifest, SERVICE_WORKER_JS } from "./pwa";
 import { OG_IMAGE_BASE64, SQUARE_LOGO_BASE64 } from "./assets/logo";
+import { renderPortal } from "./templates/portal";
+import { DANFE_LOGO_JPEG, DANFE_BROCHURE_JPEG } from "./assets/danfe";
+import { getDesign } from "./templates/designs";
 
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -42,8 +45,9 @@ app.get("/robots.txt", (c) => c.text(renderRobotsTxt(c.req.header("host") ?? c.e
 
 app.get("/sitemap.xml", async (c) => {
   const db = createDb(c.env.DB);
-  const [site] = await db.select({ sections_enabled: schema.sites.sections_enabled }).from(schema.sites).where(eq(schema.sites.tenant_id, c.get("tenantId"))).limit(1);
-  const xml = renderSitemap(c.req.header("host") ?? c.env.ROOT_DOMAIN, site?.sections_enabled ?? []);
+  const [site] = await db.select({ sections_enabled: schema.sites.sections_enabled, live_content: schema.sites.live_content }).from(schema.sites).where(eq(schema.sites.tenant_id, c.get("tenantId"))).limit(1);
+  const isDanfe = (site?.live_content as SiteContent | null)?.design === "danfe";
+  const xml = renderSitemap(c.req.header("host") ?? c.env.ROOT_DOMAIN, site?.sections_enabled ?? [], isDanfe ? DANFE_PAGES.map(p => p.path) : []);
   return c.text(xml, 200, { "content-type": "application/xml" });
 });
 
@@ -56,7 +60,7 @@ app.get("/manifest.webmanifest", async (c) => {
   const content = (site?.live_content ?? site?.draft_content ?? {}) as SiteContent;
   const manifest = renderManifest({
     businessName: content.businessName ?? tenant?.business_name ?? "Our Business",
-    themeColor: getTheme(site?.template_key ?? "generic").accent,
+    themeColor: getDesign(content.design).accent ?? getTheme(site?.template_key ?? "generic").accent,
     logoUrl: content.logoUrl,
   });
   return c.json(manifest, 200, { "content-type": "application/manifest+json", "cache-control": "public, max-age=3600" });
@@ -66,6 +70,21 @@ app.get("/sw.js", (c) => c.text(SERVICE_WORKER_JS, 200, { "content-type": "appli
 
 app.get("/icon-192.png", (c) => new Response(base64ToBytes(SQUARE_LOGO_BASE64), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } }));
 app.get("/icon-512.png", (c) => new Response(base64ToBytes(SQUARE_LOGO_BASE64), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } }));
+app.get("/brand/danfe-logo.jpeg", () => new Response(base64ToBytes(DANFE_LOGO_JPEG), { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" } }));
+app.get("/brand/danfe-brochure.jpeg", () => new Response(base64ToBytes(DANFE_BROCHURE_JPEG), { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" } }));
+
+for (const path of ["/login", "/account", "/staff/login", "/staff"]) {
+  app.get(path, async (c) => {
+    const db = createDb(c.env.DB);
+    const [tenant] = await db.select().from(schema.tenants).where(eq(schema.tenants.id, c.get("tenantId"))).limit(1);
+    const [site] = await db.select().from(schema.sites).where(eq(schema.sites.tenant_id, c.get("tenantId"))).limit(1);
+    if (!tenant || !site) return c.text("Site not found", 404);
+    const content = (site.live_content ?? site.draft_content ?? {}) as SiteContent;
+    c.header("Cache-Control", "no-store");
+    c.header("X-Robots-Tag", "noindex, nofollow");
+    return c.html(renderPortal({ content, businessName: tenant.business_name, apiBaseUrl: c.env.API_BASE_URL, role: path.startsWith("/staff") ? "staff" : "customer", accent: getDesign(content.design).accent ?? getTheme(site.template_key).accent, phone: tenant.whatsapp_number ?? content.phone }));
+  });
+}
 
 app.get("*", async (c) => {
   const db = createDb(c.env.DB);
@@ -77,6 +96,9 @@ app.get("*", async (c) => {
 
   const isPreview = c.req.query("preview") === "1";
   const content = ((isPreview ? site.draft_content : site.live_content ?? site.draft_content) ?? {}) as SiteContent;
+  const pathname = new URL(c.req.url).pathname.replace(/\/$/, "") || "/";
+  const servicePage = content.design === "danfe" ? DANFE_PAGES.find(page => page.path === pathname) : undefined;
+  if (content.design === "danfe" && pathname !== "/" && !servicePage) return c.text("Page not found", 404);
 
   const services = await db
     .select({ id: schema.services.id, name: schema.services.name, category: schema.services.category, description: schema.services.description, price: schema.services.price, duration_minutes: schema.services.duration_minutes })
@@ -103,9 +125,10 @@ app.get("*", async (c) => {
     currency: tenant.currency,
     waLink: tenant.whatsapp_number ? `https://wa.me/${tenant.whatsapp_number.replace(/\D/g, "")}` : undefined,
     isDraftPreview: isPreview,
-    canonicalUrl: `https://${host}/`,
+    canonicalUrl: `https://${host}${servicePage?.path ?? "/"}`,
     phone: tenant.whatsapp_number ?? content.phone,
     apiBaseUrl: c.env.API_BASE_URL,
+    servicePage,
   });
 
   return c.html(html);

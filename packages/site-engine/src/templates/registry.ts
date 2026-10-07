@@ -1,5 +1,6 @@
 import { FAVICON_DATA_URI } from "../assets/logo";
 import { getDesign } from "./designs";
+import { DANFE_PAGES, DANFE_FAQ } from "@serviceos/platform";
 
 /**
  * Content and template are decoupled (spec §8): `sites.draft_content` /
@@ -71,7 +72,7 @@ export function escapeHtml(input: string): string {
 }
 
 function jsonLdScript(data: unknown): string {
-  return `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
 }
 
 function fmtDuration(minutes: number): string {
@@ -93,11 +94,21 @@ export function renderSitePage(opts: {
   canonicalUrl: string;
   phone?: string;
   apiBaseUrl: string;
+  servicePage?: (typeof DANFE_PAGES)[number];
 }): string {
-  const theme = getTheme(opts.templateKey);
   const design = getDesign(opts.content.design);
+  const baseTheme = getTheme(opts.templateKey);
+  const theme = { ...baseTheme, ...(design.accent ? { accent: design.accent, accentDark: "#9f1248" } : {}) };
+  const isDanfe = design.key === "danfe";
   const name = escapeHtml(opts.content.businessName ?? "Our Business");
   const hero = escapeHtml(opts.content.heroText ?? theme.heroSubtext);
+  const pageTitle = escapeHtml(opts.servicePage?.title ?? (isDanfe ? `${opts.content.businessName ?? "Our Danfe"} | Cleaning Services in Sharjah` : `${opts.content.businessName ?? "Our Business"} — Book Online`));
+  const pageDescription = escapeHtml(opts.servicePage?.description ?? opts.content.heroText ?? theme.heroSubtext);
+  const baseUrl = new URL("/", opts.canonicalUrl).href;
+  const socialImage = opts.content.logoUrl ? escapeHtml(new URL(opts.content.logoUrl, baseUrl).href) : undefined;
+  const serviceLinks = isDanfe ? `<section><h2>Cleaning and technical services in Sharjah</h2><div class="danfe-service-links">${DANFE_PAGES.map(page => `<a href="${page.path}${opts.isDraftPreview ? "?preview=1" : ""}">${escapeHtml(page.heading)} <span aria-hidden="true">→</span></a>`).join("")}</div></section>` : "";
+  const pageDetails = opts.servicePage ? `<section class="danfe-copy"><h2>About this service</h2>${opts.servicePage.paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join("")}<p><a href="/">Our Danfe home</a> · <a href="/login">Manage your visits</a></p></section>` : "";
+  const faqSection = isDanfe ? `<section class="danfe-faq"><h2>Frequently asked questions</h2>${DANFE_FAQ.map(faq => `<details><summary>${escapeHtml(faq.question)}</summary><p>${escapeHtml(faq.answer)}</p></details>`).join("")}</section>` : "";
   const iconHref = opts.content.logoUrl ? escapeHtml(opts.content.logoUrl) : FAVICON_DATA_URI;
   const touchIconHref = opts.content.logoUrl ? escapeHtml(opts.content.logoUrl) : "/icon-192.png";
 
@@ -159,7 +170,7 @@ export function renderSitePage(opts: {
     ? `<section id="gallery" class="reveal">
         <h2>Gallery</h2>
         <div class="gallery">${opts.content
-          .gallery!.map((url) => `<img src="${escapeHtml(url)}" alt="${name} photo" loading="lazy" />`)
+          .gallery!.map((url) => `<img src="${escapeHtml(url)}" alt="${name}${url.includes("danfe-brochure") ? " team and technical services brochure" : " photo"}" loading="lazy" width="640" height="640" style="object-fit:contain" />`)
           .join("")}</div>
       </section>`
     : "";
@@ -176,13 +187,15 @@ export function renderSitePage(opts: {
   const localBusiness: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
+    "@id": `${baseUrl}#business`,
     name: opts.content.businessName ?? "Our Business",
     description: opts.content.heroText ?? theme.heroSubtext,
-    url: opts.canonicalUrl,
+    url: baseUrl,
     ...(opts.phone ? { telephone: opts.phone } : {}),
     ...(opts.content.address ? { address: { "@type": "PostalAddress", streetAddress: opts.content.address } } : {}),
     ...(opts.content.logoUrl ? { image: opts.content.logoUrl } : {}),
     priceRange: opts.currency,
+    ...(isDanfe ? { areaServed: { "@type": "City", name: "Sharjah" }, address: { "@type": "PostalAddress", addressLocality: "Sharjah", addressCountry: "AE" } } : {}),
     ...(avgRating && ratingCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: avgRating, reviewCount: ratingCount } } : {}),
   };
 
@@ -192,15 +205,14 @@ export function renderSitePage(opts: {
           "@context": "https://schema.org",
           "@type": "ItemList",
           itemListElement: opts.services.map((s, i) => ({
-            "@type": "Service",
+            "@type": "ListItem",
             position: i + 1,
-            name: s.name,
-            offers: { "@type": "Offer", price: s.price, priceCurrency: opts.currency },
+            item: { "@type": "Service", name: s.name, description: s.description ?? undefined, provider: { "@id": `${baseUrl}#business` }, offers: { "@type": "Offer", price: s.price, priceCurrency: opts.currency, url: opts.canonicalUrl } },
           })),
         }
       : null;
 
-  const servicesJson = JSON.stringify(opts.services.map((s) => ({ id: s.id, name: s.name, price: s.price, duration_minutes: s.duration_minutes })));
+  const servicesJson = JSON.stringify(opts.services.map((s) => ({ id: s.id, name: s.name, price: s.price, duration_minutes: s.duration_minutes }))).replace(/</g, "\\u003c");
   const telHref = opts.phone ? `tel:${opts.phone.replace(/[^\d+]/g, "")}` : null;
 
   return `<!doctype html>
@@ -208,8 +220,8 @@ export function renderSitePage(opts: {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>${name} — Book Online</title>
-<meta name="description" content="${hero}" />
+<title>${pageTitle}</title>
+<meta name="description" content="${pageDescription}" />
 <link rel="canonical" href="${escapeHtml(opts.canonicalUrl)}" />
 <link rel="icon" href="${iconHref}" />
 <link rel="apple-touch-icon" href="${touchIconHref}" />
@@ -220,16 +232,18 @@ export function renderSitePage(opts: {
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="${name}" />
 <meta property="og:type" content="business.business" />
-<meta property="og:title" content="${name}" />
-<meta property="og:description" content="${hero}" />
+<meta property="og:title" content="${pageTitle}" />
+<meta property="og:description" content="${pageDescription}" />
 <meta property="og:url" content="${escapeHtml(opts.canonicalUrl)}" />
-${opts.content.logoUrl ? `<meta property="og:image" content="${escapeHtml(opts.content.logoUrl)}" />` : ""}
+${socialImage ? `<meta property="og:image" content="${socialImage}" />` : ""}
 <meta name="twitter:card" content="summary" />
-<meta name="twitter:title" content="${name}" />
-<meta name="twitter:description" content="${hero}" />
+<meta name="twitter:title" content="${pageTitle}" />
+<meta name="twitter:description" content="${pageDescription}" />
 ${opts.isDraftPreview ? '<meta name="robots" content="noindex" />' : ""}
 ${jsonLdScript(localBusiness)}
 ${serviceListLd ? jsonLdScript(serviceListLd) : ""}
+${isDanfe ? jsonLdScript({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: DANFE_FAQ.map(f => ({ "@type": "Question", name: f.question, acceptedAnswer: { "@type": "Answer", text: f.answer } })) }) : ""}
+${opts.servicePage ? jsonLdScript({ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: baseUrl }, { "@type": "ListItem", position: 2, name: opts.servicePage.heading, item: opts.canonicalUrl }] }) : ""}
 ${design.fontHref ? `<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="${design.fontHref}" />` : ""}
@@ -246,7 +260,8 @@ ${design.fontHref ? `<link rel="preconnect" href="https://fonts.googleapis.com" 
   nav .links { display: none; align-items: center; gap: 1.4rem; }
   nav .links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
   @media (min-width: 720px) { nav .links { display: flex; } }
-  nav .nav-actions { display: flex; align-items: center; gap: 0.6rem; }
+  nav .nav-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  @media (max-width: 719px) { nav { flex-wrap: wrap; gap: .75rem; } }
   nav .nav-book { background: var(--accent); color: #fff; border: none; padding: 0.55rem 1.15rem; border-radius: 999px; font-weight: 700; font-size: 0.86rem; cursor: pointer; }
 
   header { position: relative; padding: 3.5rem 1.5rem 3rem; text-align: center; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #fff; overflow: hidden; }
@@ -396,6 +411,8 @@ ${design.css}
     <a href="#contact">Contact</a>
   </div>
   <div class="nav-actions">
+    <a href="/staff/login" style="font-size:.8rem;text-decoration:none;color:var(--muted)">Staff</a>
+    <a href="/login" style="font-size:.85rem;font-weight:650;text-decoration:none;color:var(--ink)">Log in</a>
     <button class="nav-book" type="button" onclick="openBooking()">Book Now</button>
   </div>
 </nav>
@@ -408,10 +425,11 @@ ${design.css}
 
 <header>
   <div class="inner">
+    ${isDanfe ? '<div class="danfe-hero-copy">' : ""}
     ${opts.content.logoUrl ? `<img class="biz-logo" src="${escapeHtml(opts.content.logoUrl)}" alt="${name} logo" />` : ""}
-    <span class="eyebrow">${escapeHtml(theme.label)}</span>
-    <h1>${name}</h1>
-    <p class="hero-text">${hero}</p>
+    <span class="eyebrow">${isDanfe ? "Our Danfe · Sharjah, UAE" : escapeHtml(theme.label)}</span>
+    <h1>${opts.servicePage ? escapeHtml(opts.servicePage.heading) : isDanfe ? "Cleaning in Sharjah. A lighter day." : name}</h1>
+    <p class="hero-text">${opts.servicePage ? pageDescription : hero}</p>
     <div class="chips">
       ${avgRating ? `<span class="chip">★ ${avgRating} (${ratingCount})</span>` : ""}
       ${opts.content.hours ? `<span class="chip">🕐 ${escapeHtml(opts.content.hours)}</span>` : ""}
@@ -421,14 +439,19 @@ ${design.css}
       <button class="cta" type="button" onclick="openBooking()">📅 Book Now</button>
       ${opts.waLink ? `<a class="cta ghost" href="${escapeHtml(opts.waLink)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
     </div>
+    ${isDanfe ? `</div><img class="danfe-hero-image" src="/brand/danfe-brochure.jpeg" alt="Our Danfe team and technical services brochure" width="640" height="640" fetchpriority="high" />` : ""}
   </div>
 </header>
 
 <main>
+  ${pageDetails}
   ${servicesSection}
+  ${serviceLinks}
+  ${isDanfe && !opts.servicePage ? '<section class="danfe-copy"><h2>Your services, connected.</h2><p>Choose a cleaning service, share your address and follow your visit online. Your customer account keeps bookings, invoices and preferences together. Our team uses its own staff workspace to manage assigned visits.</p><div class="cta-row"><a class="cta" href="/login">Customer login</a><a class="cta ghost" href="/staff/login">Staff workspace</a></div></section>' : ""}
   ${gallerySection}
   ${testimonialsSection}
   ${serviceAreaSection}
+  ${faqSection}
 </main>
 
 <footer id="contact">
@@ -537,14 +560,14 @@ ${design.css}
 
   // --- Rebook nudge for returning customers ---
   (function () {
-    var phone;
-    try { phone = localStorage.getItem('sb_customer_phone'); } catch (err) { phone = null; }
-    if (!phone || localStorage.getItem('sb_rebook_dismissed') === phone) return;
-    fetch(API_BASE + '/public/suggestions/rebook?phone=' + encodeURIComponent(phone), { headers: { 'X-Site-Host': window.location.host } })
+    var phone, accountToken;
+    try { phone = localStorage.getItem('sb_customer_phone'); accountToken = sessionStorage.getItem('sb_portal_customer'); } catch (err) { phone = null; }
+    if (!accountToken || (phone && localStorage.getItem('sb_rebook_dismissed') === phone)) return;
+    fetch(API_BASE + '/public/suggestions/rebook', { headers: { 'X-Site-Host': window.location.host, 'Authorization': 'Bearer ' + accountToken } })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.suggestion) return;
-        document.getElementById('rebook-text').innerHTML = 'Welcome back! Ready to book <strong>' + data.suggestion.serviceName + '</strong> again?';
+        document.getElementById('rebook-text').textContent = 'Welcome back! Ready to book ' + data.suggestion.serviceName + ' again?';
         document.getElementById('rebook-go').addEventListener('click', function () { openBooking(data.suggestion.serviceId); });
         document.getElementById('rebook-bar').classList.add('show');
       })
@@ -841,6 +864,8 @@ ${design.css}
   function enablePush() {
     var btn = document.getElementById('push-opt-in');
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    var accountToken = sessionStorage.getItem('sb_portal_customer');
+    if (!accountToken) { window.location.href = '/login'; return; }
     fetch(API_BASE + '/public/push/vapid-public-key', { headers: { 'X-Site-Host': window.location.host } })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -851,9 +876,9 @@ ${design.css}
           var json = sub.toJSON();
           return fetch(API_BASE + '/public/push/subscribe', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Site-Host': window.location.host },
+            headers: { 'Content-Type': 'application/json', 'X-Site-Host': window.location.host, 'Authorization': 'Bearer ' + accountToken },
             body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, customer_phone: lastCustomerPhone || undefined }),
-          });
+          }).then(function (response) { if (!response.ok) throw new Error('Please sign in again to enable reminders.'); return response; });
         });
       })
       .then(function () { resetPushButton(); })

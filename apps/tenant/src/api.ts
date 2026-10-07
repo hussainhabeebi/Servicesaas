@@ -177,7 +177,7 @@ export interface SiteContent {
   gallery?: string[];
   testimonials?: Array<{ name: string; quote: string }>;
   languages?: Array<"en" | "ar">;
-  design?: "modern" | "elegant" | "bold";
+  design?: "modern" | "elegant" | "bold" | "danfe";
 }
 export interface Site {
   id: string;
@@ -224,6 +224,9 @@ export interface Domain {
 
 // --- API surface -----------------------------------------------------------
 export const api = {
+  inviteCustomerPortal: (id: string) => request<{ activationUrl: string; expiresAt: string }>(`/api/customers/${encodeURIComponent(id)}/portal-invite`, { method: "POST" }),
+  applyDanfePreset: () => request<{ ok: boolean; servicesAdded: number }>("/api/sites/presets/danfe", { method: "POST" }),
+  linkTeamStaff: (id: string, staff_id: string) => request<{ ok: boolean }>(`/api/team/${encodeURIComponent(id)}/staff`, { method: "PATCH", body: JSON.stringify({ staff_id }) }),
   today: () => request<{ todaysBookings: Booking[]; moneyComingInToday: number; moneyOwedOverdue: number }>("/api/stats/today"),
   cashFlowForecast: () => request<{ moneyExpectedThisWeek: number; confirmedJobs: number }>("/api/stats/cash-flow-forecast"),
 

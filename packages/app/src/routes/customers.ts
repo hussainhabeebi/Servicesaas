@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { createDb, schema } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
+import { invitationHash } from "./customer-auth";
 
 export const customersRoute = new Hono<AppContext>();
 
@@ -27,8 +28,29 @@ const addressSchema = z.object({
 
 customersRoute.get("/", async (c) => {
   const db = createDb(c.env.DB);
+  if (c.get("tenantRole") === "staff") {
+    const assigned = await db.select({ customer_id: schema.bookings.customer_id }).from(schema.bookings).where(and(eq(schema.bookings.tenant_id, c.get("tenantId")), eq(schema.bookings.staff_id, c.get("staffId")!)));
+    const ids = assigned.map(b => b.customer_id);
+    const customers = ids.length ? await db.select({ id: schema.customers.id, name: schema.customers.name, phone: schema.customers.phone }).from(schema.customers).where(and(eq(schema.customers.tenant_id, c.get("tenantId")), inArray(schema.customers.id, ids))) : [];
+    return c.json({ customers });
+  }
   const rows = await db.select().from(schema.customers).where(eq(schema.customers.tenant_id, c.get("tenantId")));
   return c.json({ customers: rows });
+});
+
+/** The owner shares this one-use link with the verified customer; no messages are sent automatically. */
+customersRoute.post("/:id/portal-invite", async (c) => {
+  c.header("Cache-Control", "no-store");
+  if (c.get("tenantRole") === "staff") return c.json({ error: "Owner access required" }, 403);
+  const db = createDb(c.env.DB);
+  const tenantId = c.get("tenantId");
+  const [customer] = await db.select().from(schema.customers).where(and(eq(schema.customers.id, c.req.param("id")), eq(schema.customers.tenant_id, tenantId))).limit(1);
+  const [tenant] = await db.select().from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
+  if (!customer || !tenant) return c.json({ error: "Not found" }, 404);
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, "0")).join("");
+  const data = { invitation_hash: await invitationHash(token), invitation_expires_at: new Date(Date.now() + 86400000).toISOString(), updated_at: new Date().toISOString() };
+  await db.insert(schema.customerAccounts).values({ id: crypto.randomUUID(), tenant_id: tenantId, customer_id: customer.id, ...data }).onConflictDoUpdate({ target: [schema.customerAccounts.tenant_id, schema.customerAccounts.customer_id], set: data });
+  return c.json({ activationUrl: `https://${tenant.subdomain}/login#invite=${token}`, expiresAt: data.invitation_expires_at });
 });
 
 customersRoute.post("/", async (c) => {

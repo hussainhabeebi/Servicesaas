@@ -69,6 +69,7 @@ export const tenantUsers = sqliteTable(
     email: text("email"),
     phone: text("phone"),
     password_hash: text("password_hash").notNull(),
+    session_version: integer("session_version").notNull().default(0),
     role: text("role").notNull().default("owner"), // owner|staff|admin
     staff_id: text("staff_id"), // links a login to the operational staff/crew record used for job assignment — nullable, owner accounts have none
     active: integer("active", { mode: "boolean" }).notNull().default(true),
@@ -162,6 +163,23 @@ export const customers = sqliteTable(
     uniqueIndex("customers_tenant_phone_idx").on(t.tenant_id, t.phone),
   ]
 );
+
+export const customerAccounts = sqliteTable("customer_accounts", {
+  id: id(),
+  tenant_id: text("tenant_id").notNull(),
+  customer_id: text("customer_id").notNull(),
+  password_hash: text("password_hash"),
+  invitation_hash: text("invitation_hash"),
+  invitation_expires_at: text("invitation_expires_at"),
+  session_version: integer("session_version").notNull().default(0),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  failed_login_attempts: integer("failed_login_attempts").notNull().default(0),
+  locked_until: text("locked_until"),
+  ...timestamps,
+}, (t) => [
+  uniqueIndex("customer_accounts_customer_idx").on(t.tenant_id, t.customer_id),
+  uniqueIndex("customer_accounts_invitation_idx").on(t.invitation_hash),
+]);
 
 export const customerAddresses = sqliteTable(
   "customer_addresses",

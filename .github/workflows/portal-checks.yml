@@ -1,0 +1,24 @@
+name: Website portal checks
+on:
+  pull_request:
+  push:
+    branches:
+      - "codex/website-customer-staff-portals"
+jobs:
+  portals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test:portals
+      - run: pnpm --filter @serviceos/tenant build
+      - run: pnpm --filter @serviceos/app exec wrangler deploy --env production --dry-run
+      - run: pnpm --filter @serviceos/site-engine exec wrangler deploy --env production --dry-run

@@ -14,11 +14,12 @@
  * restyles it, plus an optional web font. Keeping it CSS-only means new
  * booking features land in every design at once.
  */
-export type SiteDesignKey = "modern" | "elegant" | "bold";
+export type SiteDesignKey = "modern" | "elegant" | "bold" | "danfe";
 
 export interface SiteDesign {
   key: SiteDesignKey;
   label: string;
+  accent?: string;
   /** Google Fonts stylesheet URL, if the design uses a web font. */
   fontHref?: string;
   css: string;
@@ -118,6 +119,28 @@ const BOLD_CSS = `
 `;
 
 export const SITE_DESIGNS: Record<SiteDesignKey, SiteDesign> = {
+  danfe: { key: "danfe", label: "Our Danfe", accent: "#cd165b", css: `
+    body.design-danfe{--accent:#cd165b;--accent-dark:#9f1248;--ink:#242359;--cream:#f6f5fc;--muted:#5d6076}
+    .design-danfe nav{padding:1rem max(1.25rem,calc((100vw - 1120px)/2));border-bottom-color:#ecebf7}
+    .design-danfe nav .brand img{border-radius:0;width:42px;height:38px;object-fit:contain}
+    .design-danfe header{background:linear-gradient(130deg,#f5f3ff,#fff 65%);color:var(--ink);text-align:left;padding:4.5rem 1.5rem;border-bottom:1px solid #ede9f7}
+    .design-danfe header:before,.design-danfe header:after{display:none}
+    .design-danfe header .inner{max-width:1120px;display:grid;grid-template-columns:1.15fr .85fr;gap:3rem;align-items:center}
+    .design-danfe header h1{font-size:clamp(2.5rem,5vw,4rem);letter-spacing:-.045em;line-height:1.05;max-width:18ch}
+    .design-danfe .eyebrow{color:var(--accent);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;font-weight:800}
+    .design-danfe header .hero-text{color:var(--muted);font-size:1.08rem;max-width:51ch}
+    .design-danfe .chips,.design-danfe .cta-row{justify-content:flex-start}
+    .design-danfe .chip{color:var(--ink);background:#eeebff;border-color:#e2def4}
+    .design-danfe .cta.ghost{background:transparent;color:var(--ink);border-color:#bcb5d8}
+    .design-danfe .danfe-hero-image{border:8px solid white;border-radius:24px;box-shadow:0 24px 60px #29245920;width:100%;height:auto;aspect-ratio:1;object-fit:contain;background:#fff}
+    .design-danfe main{max-width:1120px}.design-danfe section{margin:3.5rem 0}.design-danfe h2{font-size:1.8rem;letter-spacing:-.035em}
+    .design-danfe .svc-card{padding:1.8rem;border:1px solid #e6e2f1;box-shadow:0 8px 30px #29245907;border-radius:18px}
+    .design-danfe .svc-price{font-size:1.8rem}.design-danfe .danfe-service-links{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+    .design-danfe .danfe-service-links a{padding:1.5rem;background:var(--cream);border:1px solid #e6e2f1;border-radius:16px;text-decoration:none;color:var(--ink);font-weight:700}
+    .design-danfe .danfe-copy{max-width:780px;line-height:1.8}.design-danfe .danfe-faq details{border-bottom:1px solid #e6e2f1;padding:1rem 0}.design-danfe .danfe-faq summary{font-weight:700;cursor:pointer}.design-danfe footer{background:#27255c;color:white}.design-danfe footer .contact-line{color:#e1dff1}
+    @media(max-width:740px){.design-danfe header{padding:2.5rem 1.2rem}.design-danfe header .inner{grid-template-columns:1fr;gap:2rem}.design-danfe .danfe-hero-image{max-width:440px}.design-danfe .danfe-service-links{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){.design-danfe *{animation:none!important;transition:none!important}.design-danfe .reveal{opacity:1;transform:none}}
+  ` },
   // The original look — no overrides.
   modern: { key: "modern", label: "Modern", css: "" },
   elegant: {

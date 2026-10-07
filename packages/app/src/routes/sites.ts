@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { createDb } from "@serviceos/platform";
+import { createDb, schema, DANFE_CONTENT, DANFE_SERVICES } from "@serviceos/platform";
+import { and, eq } from "drizzle-orm";
 import type { AppContext } from "@serviceos/platform";
 import { SITE_DESIGN_KEYS, getSite, updateSite, publishSite, listSiteVersions, rollbackSiteVersion } from "../lib/site-management";
 
@@ -11,6 +12,25 @@ import { SITE_DESIGN_KEYS, getSite, updateSite, publishSite, listSiteVersions, r
  * copies it into `live_content` — the one thing site-engine reads.
  */
 export const sitesRoute = new Hono<AppContext>();
+
+sitesRoute.post("/presets/danfe", async (c) => {
+  const db = createDb(c.env.DB);
+  const tenantId = c.get("tenantId");
+  const [tenant] = await db.select({ business_name: schema.tenants.business_name, currency: schema.tenants.currency }).from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
+  if (!tenant || !/danfe/i.test(tenant.business_name) || tenant.currency !== "AED") return c.json({ error: "This preset is for the Danfe business with AED pricing." }, 400);
+  if (!(await getSite(db, tenantId))) return c.json({ error: "Website not found" }, 404);
+  let servicesAdded = 0;
+  for (const service of DANFE_SERVICES) {
+    const [existing] = await db.select({ id: schema.services.id }).from(schema.services).where(and(eq(schema.services.tenant_id, tenantId), eq(schema.services.name, service.name))).limit(1);
+    if (existing) await db.update(schema.services).set({ ...service, active: true, updated_at: new Date().toISOString() }).where(eq(schema.services.id, existing.id));
+    else {
+      await db.insert(schema.services).values({ id: `${tenantId}:danfe:${service.price}`, tenant_id: tenantId, active: true, ...service }).onConflictDoNothing();
+      servicesAdded++;
+    }
+  }
+  await updateSite(db, tenantId, { content: DANFE_CONTENT, sections_enabled: ["pricing", "gallery", "testimonials", "service_area_map"] });
+  return c.json({ ok: true, servicesAdded });
+});
 
 const contentSchema = z.object({
   businessName: z.string().optional(),

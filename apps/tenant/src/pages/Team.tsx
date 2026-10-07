@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, type TeamMember } from "../api";
+import { api, type TeamMember, type Staff } from "../api";
 import { pageTitle, table, th, td, Badge, btn, btnPrimary, input, card } from "../ui";
 
 export function TeamPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -11,7 +12,7 @@ export function TeamPage() {
   const [newCred, setNewCred] = useState<{ email: string; tempPassword: string } | null>(null);
 
   const load = () => api.team().then((r) => setTeam(r.team)).catch((e) => setError(String(e)));
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); api.staff().then(r => setStaff(r.staff)).catch(e => setError(String(e))); }, []);
 
   async function invite(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +67,7 @@ export function TeamPage() {
             <th style={th}>Contact</th>
             <th style={th}>Role</th>
             <th style={th}>Status</th>
+            <th style={th}>Staff record</th>
             <th style={th}></th>
           </tr>
         </thead>
@@ -78,6 +80,7 @@ export function TeamPage() {
               <td style={td}>
                 <Badge color={m.active ? "#16a34a" : "#6b7280"}>{m.active ? "active" : "inactive"}</Badge>
               </td>
+              <td style={td}>{m.role === "staff" ? <select aria-label={`Staff record for ${m.name}`} value={m.staff_id ?? ""} onChange={async e => { try { await api.linkTeamStaff(m.id, e.target.value); load(); } catch (error) { setError(String(error)); } }}><option value="" disabled>Connect staff record</option>{staff.filter(s => s.active).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select> : "—"}</td>
               <td style={td}>
                 {m.active && m.role !== "owner" && (
                   <button style={btn} onClick={() => deactivate(m.id)}>

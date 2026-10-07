@@ -14,7 +14,7 @@ export interface ManifestInput {
 export function renderManifest(opts: ManifestInput): Record<string, unknown> {
   const shortName = opts.businessName.length > 12 ? opts.businessName.slice(0, 12) : opts.businessName;
   const icons = opts.logoUrl
-    ? [{ src: opts.logoUrl, sizes: "any", type: "image/png", purpose: "any" }]
+    ? [{ src: opts.logoUrl, sizes: "any", type: /\.jpe?g(?:\?|$)/i.test(opts.logoUrl) ? "image/jpeg" : "image/png", purpose: "any" }]
     : [
         { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
         { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
@@ -42,7 +42,7 @@ export function renderManifest(opts: ManifestInput): Record<string, unknown> {
  * static bundle to precache.
  */
 export const SERVICE_WORKER_JS = `
-const CACHE_NAME = 'servbazaar-site-v1';
+const CACHE_NAME = 'servbazaar-site-v2';
 
 self.addEventListener('install', () => { self.skipWaiting(); });
 
@@ -55,12 +55,17 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Account screens and authenticated requests must never persist in shared/offline caches.
+  if (req.headers.has('authorization') || /^\\/(login|account|staff|customer|staff-portal)(\\/|$)/.test(url.pathname)) return;
   event.respondWith(
     fetch(req)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        if (res.ok && !(res.headers.get('cache-control') || '').includes('no-store')) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
         return res;
       })
       .catch(() => caches.match(req).then((cached) => cached || caches.match('/')))

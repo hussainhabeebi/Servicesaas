@@ -8,6 +8,16 @@ import { generateTempPassword } from "../lib/temp-password";
 /** Team management (spec: "assign jobs/crews with their own logins, no shared passwords"). */
 export const teamRoute = new Hono<AppContext>();
 
+teamRoute.patch("/:id/staff", async (c) => {
+  const parsed = z.object({ staff_id: z.string().min(1) }).safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: "Staff record required" }, 400);
+  const db = createDb(c.env.DB), tenantId = c.get("tenantId");
+  const [staff] = await db.select({ id: schema.staff.id }).from(schema.staff).where(and(eq(schema.staff.id, parsed.data.staff_id), eq(schema.staff.tenant_id, tenantId), eq(schema.staff.active, true))).limit(1);
+  if (!staff) return c.json({ error: "Staff record not found" }, 404);
+  const users = await db.update(schema.tenantUsers).set({ staff_id: staff.id, updated_at: new Date().toISOString() }).where(and(eq(schema.tenantUsers.id, c.req.param("id")), eq(schema.tenantUsers.tenant_id, tenantId), eq(schema.tenantUsers.role, "staff"))).returning({ id: schema.tenantUsers.id });
+  return users.length ? c.json({ ok: true }) : c.json({ error: "Staff login not found" }, 404);
+});
+
 teamRoute.get("/", async (c) => {
   const db = createDb(c.env.DB);
   const rows = await db

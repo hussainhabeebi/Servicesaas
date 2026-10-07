@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { createDb, schema, verifyPassword, signAccessToken } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { isLocked, nextLockoutState, clearedLockoutState, LOCKOUT_MINUTES } from "../lib/lockout";
@@ -12,6 +12,7 @@ import { isLocked, nextLockoutState, clearedLockoutState, LOCKOUT_MINUTES } from
  * email/phone directly.
  */
 export const authRoute = new Hono<AppContext>();
+authRoute.use("*", async (c, next) => { c.header("Cache-Control", "no-store"); await next(); });
 
 const loginSchema = z.object({
   identifier: z.string().min(3), // email or phone
@@ -24,13 +25,16 @@ authRoute.post("/login", async (c) => {
   const { identifier, password } = parsed.data;
 
   const db = createDb(c.env.DB);
-  const byEmail = await db.select().from(schema.tenantUsers).where(eq(schema.tenantUsers.email, identifier)).limit(1);
+  const tenantId = c.get("tenantId");
+  const tenantScope = tenantId ? eq(schema.tenantUsers.tenant_id, tenantId) : undefined;
+  const byEmail = await db.select().from(schema.tenantUsers).where(and(eq(schema.tenantUsers.email, identifier), tenantScope)).limit(1);
   const byPhone = byEmail.length
     ? []
-    : await db.select().from(schema.tenantUsers).where(eq(schema.tenantUsers.phone, identifier)).limit(1);
+    : await db.select().from(schema.tenantUsers).where(and(eq(schema.tenantUsers.phone, identifier), tenantScope)).limit(1);
   const user = byEmail[0] ?? byPhone[0];
 
   if (!user || !user.active) return c.json({ error: "Invalid credentials" }, 401);
+  if (tenantId && user.role !== "staff") return c.json({ error: "Use a staff account for this portal" }, 403);
   if (isLocked(user.locked_until)) {
     return c.json({ error: `Too many failed attempts — try again in a few minutes`, lockedUntil: user.locked_until }, 429);
   }
@@ -52,7 +56,7 @@ authRoute.post("/login", async (c) => {
   if (!tenant || tenant.status !== "active") return c.json({ error: "Account is not active" }, 403);
 
   const token = await signAccessToken(
-    { sub: user.id, tenant_id: user.tenant_id, role: user.role as "owner" | "staff" | "admin", staff_id: user.staff_id ?? undefined },
+    { sub: user.id, tenant_id: user.tenant_id, role: user.role as "owner" | "staff" | "admin", staff_id: user.staff_id ?? undefined, version: user.session_version },
     c.env.JWT_SECRET
   );
 
