@@ -41,7 +41,7 @@ test('every advertised page renders meaningful HTML, unique metadata, valid sche
     assert(!descriptions.has(description)); descriptions.add(description);
     const data = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
     assert.equal(data['@graph'][0].address.addressLocality, 'Sharjah');
-    assert.deepEqual(data['@graph'][0].hasOfferCatalog.itemListElement.map(item => item.price), [25,35]);
+    assert.deepEqual(data['@graph'][0].hasOfferCatalog.itemListElement.map(item => item.price), page.path.includes('dubai') ? [30,40] : [25,35]);
     assert(!html.includes('AggregateRating'), 'No invented reviews');
     for (const [, href] of html.matchAll(/href="(\/[^"#?]*)(?:#[^"]*)?"/g)) assert.equal(get(href).status, 200, `${page.path}: ${href}`);
     for (const [, id] of html.matchAll(/href="#([^"]+)"/g)) assert(html.includes(`id="${id}"`), `${page.path}: #${id}`);
@@ -147,4 +147,13 @@ test('enquiry planner calculates both rates, handles specialist quotes and encod
   assert.match(url.searchParams.get('text'), /Al Majaz & near park/);
   assert.match(url.searchParams.get('text'), /Quote required/);
   assert.match(values.date.min, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+
+test('Dubai and Sharjah hourly rates remain distinct', async () => {
+ for (const [path,rates] of [['/cleaning-services-dubai',[30,40]],['/services/home-cleaning-dubai',[30,40]],['/cleaning-services-sharjah',[25,35]]]) {
+  const html = await get(path).text();
+  const data = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+  assert.deepEqual(data['@graph'][0].hasOfferCatalog.itemListElement.map(item=>item.price),rates);
+ }
 });

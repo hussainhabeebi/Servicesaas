@@ -35,7 +35,7 @@ export const bookingClientScript = `
     const connection = document.getElementById('booking-connection');
     const submit = document.getElementById('booking-submit');
     const slots = document.getElementById('booking-slots');
-    let catalogue = [], sending = false, slotRevision = 0;
+    let allServices = [], catalogue = [], sending = false, slotRevision = 0;
     const query = new URLSearchParams(location.search);
     if (query.get('city') === 'Dubai') city.value = 'Dubai';
     const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Dubai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
@@ -61,19 +61,31 @@ export const bookingClientScript = `
         }); slots.append(row);
       } catch { if (revision === slotRevision) slots.append(node('p','Suggested times could not be loaded. You can enter a preferred time or contact the team.','fine')); }
     }
+    const populate = () => {
+      const previous = serviceInput.value;
+      catalogue = allServices.filter(s => city.value === 'Dubai' ? /_dubai$/.test(s.category || '') : !/_dubai$/.test(s.category || ''));
+      serviceInput.replaceChildren(new Option('Choose your cleaning package', ''));
+      catalogue.forEach(service => serviceInput.append(new Option(service.name + ' · AED ' + service.price, service.id)));
+      const category = (query.get('category') || 'danfe_normal') + (city.value === 'Dubai' ? '_dubai' : '');
+      const preferred = catalogue.find(s => s.id === previous) || catalogue.find(s => s.category === category && s.duration_minutes === 180);
+      if (preferred) serviceInput.value = preferred.id;
+      update();
+      ['normal', 'materials'].forEach(kind => { document.querySelectorAll('[data-rate= + kind + ]').forEach(el => { const rate = city.value === 'Dubai' ? (kind === 'normal' ? 30 : 40) : (allServices.find(s => s.category === 'danfe_' + kind && s.duration_minutes === 60)?.price ?? (kind === 'normal' ? 25 : 35)); el.textContent = 'AED ' + rate + ' / hour'; }); });
+    };
+    city.addEventListener('change', () => { populate(); loadSlots(); });
     async function refreshCatalogue() {
       try {
         const result = await api('/storefront');
         const previous = serviceInput.value;
-        catalogue = result.services || [];
-        serviceInput.replaceChildren(new Option('Choose your cleaning package',''));
-        catalogue.forEach(service => serviceInput.append(new Option(service.name + ' · AED ' + service.price, service.id)));
+        allServices = result.services || [];
+        populate();
+
         if (catalogue.some(s => s.id === previous)) serviceInput.value = previous;
         else { const category = query.get('category'); const service = catalogue.find(s => s.category === category && s.duration_minutes === 180); if (service) serviceInput.value = service.id; }
         serviceInput.disabled = false;
         submit.disabled = !catalogue.length || sending;
         connection.textContent = catalogue.length ? 'Choose from the available cleaning packages.' : 'No online services are available. Please contact our team.';
-        update(); updateRates(catalogue);
+        update();
       } catch (error) { connection.textContent = error.message; serviceInput.replaceChildren(new Option('Online booking unavailable', '')); serviceInput.disabled = true; price.value = '—'; submit.disabled = true; }
     }
     serviceInput.addEventListener('change', () => {update(); loadSlots();});
@@ -135,3 +147,4 @@ export const bookingClientScript = `
   }
 })();
 `;
+

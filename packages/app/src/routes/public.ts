@@ -73,6 +73,11 @@ publicRoute.post("/bookings", async (c) => {
   const [service] = await db.select().from(schema.services).where(and(eq(schema.services.id, input.service_id), eq(schema.services.tenant_id, tenantId), eq(schema.services.active, true))).limit(1);
   if (!service) return c.json({ error: "Service not found" }, 404);
 
+  if (tenantId === '758794a2-6df0-4150-b160-4ab5cc7ae0ee' && /^danfe_(normal|materials)/.test(service.category ?? '')) {
+    const dubai = /^Dubai(?:,|$)/i.test(input.area ?? '');
+    if (dubai !== (service.category ?? '').endsWith('_dubai')) return c.json({ error: 'Choose a cleaning package for your selected city.' }, 400);
+  }
+
   const [existingCustomer] = await db.select({ id: schema.customers.id }).from(schema.customers).where(and(eq(schema.customers.tenant_id, tenantId), eq(schema.customers.phone, input.customer_phone))).limit(1);
   let customerId = existingCustomer?.id;
   if (!customerId) {
