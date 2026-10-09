@@ -24,9 +24,9 @@ export type Vertical = (typeof VERTICALS)[number];
 
 export const VERTICAL_DEFAULT_SERVICES: Record<Vertical, DefaultService[]> = {
   cleaning: [
-    { name: "Standard Home Cleaning", category: "Cleaning", duration_minutes: 120, price: 150 },
-    { name: "Deep Cleaning", category: "Cleaning", duration_minutes: 240, price: 350 },
-    { name: "Move-out Cleaning", category: "Cleaning", duration_minutes: 300, price: 450 },
+    // Dubai market rate: hourly, priced on whether the cleaner brings supplies.
+    { name: "Home Cleaning (without materials, per hour)", category: "Cleaning", duration_minutes: 60, price: 30 },
+    { name: "Home Cleaning (with materials, per hour)", category: "Cleaning", duration_minutes: 60, price: 40 },
   ],
   salon: [
     { name: "Haircut", category: "Hair", duration_minutes: 45, price: 80 },
