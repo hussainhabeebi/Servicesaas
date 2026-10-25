@@ -13,7 +13,8 @@ async function resolveDanfeRuntime(env: DanfeConnectionEnv): Promise<{ runtime: 
   if (!tenant || tenant.status !== 'active') return { runtime: { connected: false } };
   const [site] = await db.select({ content: schema.sites.live_content }).from(schema.sites).where(eq(schema.sites.tenant_id, DANFE_TENANT_ID)).limit(1);
   const content = { businessName: tenant.businessName, ...(tenant.phone ? { phone: tenant.phone } : {}), ...(tenant.address ? { address: tenant.address } : {}), ...(site?.content ?? {}) } as SiteContent;
-  if (content.design !== 'danfe') return { runtime: { connected: false } };
+  // This Worker is already scoped to DANFE_TENANT_ID. A presentation choice
+  // must not disable the account's service catalogue or booking connection.
   const services = await db.select({ id: schema.services.id, name: schema.services.name, category: schema.services.category, price: schema.services.price, duration_minutes: schema.services.duration_minutes, description: schema.services.description }).from(schema.services).where(and(eq(schema.services.tenant_id, DANFE_TENANT_ID), eq(schema.services.active, true)));
   return { runtime: { connected: true, content, services }, siteHost: tenant.subdomain };
 }
