@@ -58,6 +58,14 @@ app.route("/public", publicApp);
 // --- Authenticated tenant business routes: tenant resolved from the JWT ----
 const api = new Hono<AppContext>();
 api.use("*", requireAuth());
+api.use("*", async (c, next) => {
+ if (c.get("tenantRole") === "staff") {
+   const path = new URL(c.req.url).pathname;
+   const allowed = (c.req.method === "GET" && path === "/api/bookings/mine") || (c.req.method === "POST" && /^\/api\/bookings\/[^/]+\/(checkin|checkout|status)$/.test(path));
+   if (!allowed) return c.json({ error: "Staff access is limited to assigned jobs" }, 403);
+ }
+ await next();
+});
 api.route("/services", servicesRoute);
 api.route("/staff", staffRoute);
 api.route("/customers", customersRoute);
@@ -121,6 +129,8 @@ export default {
     const db = createDb(env.DB);
     const tenants = await db.select({ id: schema.tenants.id }).from(schema.tenants).where(eq(schema.tenants.status, "active"));
     for (const tenant of tenants) {
+      const { sendCompletionNotifications } = await import("./lib/billing-on-completion");
+      await sendCompletionNotifications(env, tenant.id).catch(() => {});
       await rollupDailyStatsForTenant(env, tenant.id).catch((err) => console.error(`rollup failed for tenant ${tenant.id}`, err));
       await runFollowUpsForTenant(env, tenant.id).catch((err) => console.error(`follow-ups failed for tenant ${tenant.id}`, err));
       await runPushRemindersForTenant(env, tenant.id).catch((err) => console.error(`push reminders failed for tenant ${tenant.id}`, err));

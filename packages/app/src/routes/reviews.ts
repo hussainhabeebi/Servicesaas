@@ -1,3 +1,4 @@
+import { getChatwootConfig } from "../lib/chatwoot-config";
 import { Hono } from "hono";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
@@ -39,7 +40,7 @@ reviewsRoute.post("/request", async (c) => {
   let sent = false;
   if (tenant?.chatwoot_inbox_id && tenant.chatwoot_account_id) {
     const result = await sendChatwootProactiveMessage(
-      { baseUrl: c.env.CHATWOOT_BASE_URL, apiAccessToken: c.env.CHATWOOT_AGENT_BOT_TOKEN, accountId: tenant.chatwoot_account_id },
+      await getChatwootConfig(c.env, tenantId),
       tenant.chatwoot_inbox_id,
       customer.phone,
       customer.name,

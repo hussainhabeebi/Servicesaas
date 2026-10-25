@@ -1,3 +1,4 @@
+import { getChatwootConfig } from "../lib/chatwoot-config";
 import { Hono } from "hono";
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
@@ -58,7 +59,7 @@ broadcastRoute.post("/:id/send", async (c) => {
 
   await db.update(schema.broadcastCampaigns).set({ status: "sending" }).where(eq(schema.broadcastCampaigns.id, campaignId));
 
-  const chatwootConfig = { baseUrl: c.env.CHATWOOT_BASE_URL, apiAccessToken: c.env.CHATWOOT_AGENT_BOT_TOKEN, accountId: tenant.chatwoot_account_id };
+  const chatwootConfig = await getChatwootConfig(c.env, tenantId);
   let sentCount = 0;
   for (const recipient of recipients) {
     const content = campaign.message_template.replace(/\{\{name\}\}/g, recipient.name);

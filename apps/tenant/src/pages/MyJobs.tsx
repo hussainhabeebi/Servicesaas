@@ -11,21 +11,17 @@ import { pageTitle, Badge, STATUS_COLORS, colors } from "../ui";
  */
 export function MyJobsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const [day, setDay] = useState(new Date().toLocaleDateString("en-CA"));
+  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
-    api.myJobs().then((r) => setBookings(r.bookings)).catch((e) => setError(String(e)));
-    api.customers().then((r) => setCustomers(r.customers)).catch(() => {});
-    api.services().then((r) => setServices(r.services)).catch(() => {});
+    api.myJobs({ from: new Date(day + "T00:00:00").toISOString(), to: new Date(day + "T23:59:59").toISOString() }).then((r) => { setBookings(r.bookings); setError(null); }).catch((e) => setError(String(e))).finally(() => setLoading(false));
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [day]);
 
-  const customerFor = (id: string) => customers.find((c) => c.id === id);
-  const serviceFor = (id: string) => services.find((s) => s.id === id);
 
   async function checkIn(id: string) {
     setBusyId(id);
@@ -45,7 +41,7 @@ export function MyJobsPage() {
     setNote(null);
     try {
       const result = await api.completeJob(id);
-      setNote(result.invoiceId ? "Job marked complete — a draft invoice was created." : "Job marked complete.");
+      setNote(result.invoiceId ? "Service completed — added to customer billing. Notification queued." : "Job marked complete.");
       load();
     } catch (e) {
       setNote(String(e));
@@ -62,22 +58,25 @@ export function MyJobsPage() {
 
   return (
     <div>
-      <h1 style={pageTitle}>My Jobs</h1>
+      <h1 style={pageTitle}>Daily services</h1>
+      <label>Service day <input aria-label="Service day" type="date" value={day} onChange={e => { setLoading(true); setDay(e.target.value); }} style={{ padding: 12, border: "1px solid #cbd5e1", borderRadius: 12, marginBottom: 20 }} /></label>
+      <p>{bookings.filter(b => b.status === "completed").length} completed · {upcoming.length} remaining</p>
+      {loading && <p role="status">Loading visits…</p>}
       {note && (
         <div style={{ background: colors.accentSoft, color: colors.accent, borderRadius: 10, padding: "0.65rem 0.9rem", fontSize: "0.85rem", fontWeight: 600, marginBottom: "1rem" }}>
           {note}
         </div>
       )}
-      {upcoming.length === 0 ? (
+      {!loading && upcoming.length === 0 ? (
         <p style={{ color: colors.inkMuted }}>Nothing on your schedule right now.</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
           {upcoming.map((b) => {
-            const customer = customerFor(b.customer_id);
-            const service = serviceFor(b.service_id);
+            const customer = { name: b.customer_name, phone: b.customer_phone };
+            const service = { name: b.service_name };
             const busy = busyId === b.id;
             const canCheckIn = b.status === "scheduled" || b.status === "en_route";
-            const canComplete = b.status === "in_progress";
+            const canComplete = b.status !== "cancelled" && new Date(b.scheduled_start).getTime() <= Date.now();
             return (
               <div key={b.id} style={{ border: `1px solid ${colors.border}`, borderRadius: 14, padding: "1.1rem 1.2rem", background: colors.surface }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.5rem" }}>
@@ -107,7 +106,7 @@ export function MyJobsPage() {
                   )}
                   {canComplete && (
                     <button disabled={busy} onClick={() => complete(b.id)} style={{ ...actionBtn, background: colors.accent, color: "#fff" }}>
-                      {busy ? "…" : "Complete Job"}
+                      {busy ? "…" : "✓ Service completed"}
                     </button>
                   )}
                   {!canCheckIn && !canComplete && <span style={{ fontSize: "0.8rem", color: colors.inkMuted, alignSelf: "center" }}>Waiting on the owner to assign/confirm.</span>}
@@ -117,6 +116,7 @@ export function MyJobsPage() {
           })}
         </div>
       )}
+      {bookings.filter(b => b.status === "completed").map(b => <div key={b.id} style={{ padding: 16, marginTop: 10, background: "#ecfdf5", borderRadius: 14 }}>✓ {b.customer_name} · {b.service_name}<small style={{ display: "block" }}>Completed · recorded for billing</small></div>)}
     </div>
   );
 }

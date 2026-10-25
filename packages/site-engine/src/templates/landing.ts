@@ -314,7 +314,8 @@ ${jsonLd(rootDomain)}
     <a class="nav-link" href="#how-it-works">How it works</a>
     <a class="nav-link" href="#pricing">Pricing</a>
     <a class="nav-link" href="#faq">FAQ</a>
-    <button class="login" type="button" onclick="openLogin()">Log in</button>
+    <a class="login" href="https://app.${rootDomain}/login?role=staff">Staff login</a>
+    <a class="login" href="https://app.${rootDomain}/login?role=admin">Admin login</a>
     <a class="nav-cta" href="#signup">Get Started</a>
     <button class="hamburger" type="button" onclick="toggleMobileMenu()" aria-label="Menu">☰</button>
   </div>
@@ -324,7 +325,8 @@ ${jsonLd(rootDomain)}
   <a href="#how-it-works" onclick="closeMobileMenu()">How it works</a>
   <a href="#pricing" onclick="closeMobileMenu()">Pricing</a>
   <a href="#faq" onclick="closeMobileMenu()">FAQ</a>
-  <a href="#" onclick="closeMobileMenu(); openLogin(); return false;">Log in</a>
+  <a href="https://app.${rootDomain}/login?role=staff">Staff login</a>
+  <a href="https://app.${rootDomain}/login?role=admin">Admin login</a>
   <a class="mobile-cta" href="#signup" onclick="closeMobileMenu()">Get Started</a>
 </div>
 

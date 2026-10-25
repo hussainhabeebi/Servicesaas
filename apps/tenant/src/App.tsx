@@ -15,7 +15,7 @@ const OWNER_NAV: Array<{ to: string; label: string; end?: boolean; icon: string 
   { to: "/domain", label: "Domain", icon: "🔗" },
   { to: "/staff", label: "Staff", icon: "🧑‍🔧" },
   { to: "/team", label: "Team", icon: "🧑‍🤝‍🧑" },
-  { to: "/whatsapp", label: "WhatsApp", icon: "💬" },
+  { to: "/whatsapp", label: "Messaging", icon: "💬" },
   { to: "/tasks", label: "Tasks", icon: "✅" },
   { to: "/reports", label: "Reports", icon: "📊" },
   { to: "/broadcasts", label: "Broadcasts", icon: "📣" },
@@ -26,8 +26,7 @@ const OWNER_NAV: Array<{ to: string; label: string; end?: boolean; icon: string 
 // Staff-role logins get a short, job-focused nav — not the owner's full back-office menu.
 const STAFF_NAV: Array<{ to: string; label: string; end?: boolean; icon: string }> = [
   { to: "/my-jobs", label: "My Jobs", end: true, icon: "🧰" },
-  { to: "/tasks", label: "Tasks", icon: "✅" },
-];
+ ];
 
 export function App() {
   const navigate = useNavigate();
@@ -123,14 +122,22 @@ export function App() {
         >
           {navContent}
         </aside>
-        <main style={{ flex: 1, padding: "2rem", maxWidth: 1100 }}>
+        <main style={{ minWidth: 0, flex: 1, padding: "2rem", maxWidth: 1100 }}>
           <Outlet />
         </main>
       </div>
 
+      <nav className="mobile-tabs" aria-label="Quick navigation">{(staffOnly ? STAFF_NAV : [OWNER_NAV[0], OWNER_NAV[3], OWNER_NAV[2], OWNER_NAV[4]]).map(item => <NavLink key={item.to} to={item.to} end={item.end} style={navLinkStyle}>{item.icon} {item.label}</NavLink>)}</nav>
       <style>{`
+        * { box-sizing: border-box; }
+        .mobile-tabs { display:none; }
+        @media(max-width:760px) { .mobile-tabs { display:flex; justify-content:space-around; position:fixed; bottom:0; width:100%; padding:8px 4px calc(8px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid #e2e8f0; z-index:80; } .mobile-tabs a { font-size:11px !important; flex-direction:column; gap:4px !important; } }
+
         @media (max-width: 760px) {
-          .tenant-sidebar { display: none; }
+          .tenant-sidebar { display: none !important; }
+          main { padding: 1rem !important; min-width: 0; padding-bottom: 90px !important; }
+          table { display: block; overflow-x: auto; }
+          input, select { font-size: 16px !important; }
           .tenant-topbar { display: flex !important; }
         }
       `}</style>

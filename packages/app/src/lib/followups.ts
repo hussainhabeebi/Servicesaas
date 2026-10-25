@@ -1,3 +1,4 @@
+import { getChatwootConfig } from "../lib/chatwoot-config";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { createDb, schema, sendChatwootProactiveMessage, type Env, type ChatwootConfig } from "@serviceos/platform";
 
@@ -17,7 +18,7 @@ export async function runFollowUpsForTenant(env: Env, tenantId: string): Promise
     .limit(1);
   if (!tenant?.chatwoot_account_id || !tenant.chatwoot_inbox_id) return { winBackSent: 0, rebookingSent: 0 };
 
-  const chatwootConfig: ChatwootConfig = { baseUrl: env.CHATWOOT_BASE_URL, apiAccessToken: env.CHATWOOT_AGENT_BOT_TOKEN, accountId: tenant.chatwoot_account_id };
+  const chatwootConfig: ChatwootConfig = await getChatwootConfig(env, tenantId);
 
   // Win-back: leads quoted but gone quiet for ~48 hours
   const now = Date.now();

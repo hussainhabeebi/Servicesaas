@@ -1,3 +1,4 @@
+import { getChatwootConfig } from "../lib/chatwoot-config";
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
 import {
@@ -120,11 +121,7 @@ chatwootWebhookRoute.post("/", async (c) => {
   const tenantId = resolved.tenantId;
 
   const db = createDb(c.env.DB);
-  const chatwootConfig: ChatwootConfig = {
-    baseUrl: c.env.CHATWOOT_BASE_URL,
-    apiAccessToken: c.env.CHATWOOT_AGENT_BOT_TOKEN,
-    accountId: resolved.accountId,
-  };
+  const chatwootConfig = await getChatwootConfig(c.env, tenantId);
 
   const internalConversationId = await getOrCreateConversation(db, tenantId, phone, conversationId);
   const contactName = payload.sender?.name;
@@ -132,7 +129,7 @@ chatwootWebhookRoute.post("/", async (c) => {
   let reply: string | null = null;
 
   if (attachment?.file_type === "audio") {
-    const bytes = await downloadChatwootAttachment(attachment.data_url, c.env.CHATWOOT_AGENT_BOT_TOKEN);
+    const bytes = await downloadChatwootAttachment(attachment.data_url, chatwootConfig.apiAccessToken);
     let mediaKey: string | undefined;
     let transcript = "";
     if (bytes) {
@@ -145,7 +142,7 @@ chatwootWebhookRoute.post("/", async (c) => {
       ? await processInboundText(c.env, tenantId, phone, contactName, transcript)
       : "Sorry, I couldn't understand that voice note — could you type your request instead?";
   } else if (attachment?.file_type === "image") {
-    const bytes = await downloadChatwootAttachment(attachment.data_url, c.env.CHATWOOT_AGENT_BOT_TOKEN);
+    const bytes = await downloadChatwootAttachment(attachment.data_url, chatwootConfig.apiAccessToken);
     let mediaKey: string | undefined;
     if (bytes) {
       mediaKey = `${tenantId}/wa-photos/${payload.id}`;

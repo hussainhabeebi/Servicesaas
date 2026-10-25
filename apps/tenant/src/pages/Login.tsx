@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { login } from "../api";
 
 export function LoginPage() {
+  const staffLogin = new URLSearchParams(window.location.search).get("role") === "staff";
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +31,14 @@ export function LoginPage() {
           <img src="/logo.png" alt="" width={36} height={36} style={{ borderRadius: 9 }} />
           <h1 style={{ fontSize: "1.3rem", margin: 0 }}>ServBazaar</h1>
         </div>
+        <h2 style={{ fontSize: 20 }}>{staffLogin ? "Staff login" : "Admin login"}</h2>
+        <p style={{ color: "#64748b" }}>{staffLogin ? "Your customers and daily cleaning visits." : "Manage bookings, your team and billing."}</p>
+        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}><a href="/login?role=staff">Staff</a><a href="/login?role=admin">Admin</a></div>
         <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: 4 }}>Email or phone</label>
         <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} required style={inputStyle} />
+        <h2 style={{ fontSize: 20 }}>{staffLogin ? "Staff login" : "Admin login"}</h2>
+        <p style={{ color: "#64748b" }}>{staffLogin ? "Your customers and daily cleaning visits." : "Manage bookings, your team and billing."}</p>
+        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}><a href="/login?role=staff">Staff</a><a href="/login?role=admin">Admin</a></div>
         <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", margin: "0.9rem 0 4px" }}>Password</label>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={inputStyle} />
         {error && <p style={{ color: "#b91c1c", fontSize: "0.85rem", marginTop: "0.75rem" }}>{error}</p>}

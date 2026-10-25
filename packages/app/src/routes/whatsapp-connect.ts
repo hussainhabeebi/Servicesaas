@@ -1,3 +1,5 @@
+import { requireAuth } from "@serviceos/platform";
+import { encryptToken } from "../lib/chatwoot-config";
 import { Hono } from "hono";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -21,6 +23,28 @@ import type { AppContext } from "@serviceos/platform";
  * that tenant.
  */
 export const whatsappConnectRoute = new Hono<AppContext>();
+whatsappConnectRoute.use("*", requireAuth("owner", "admin"));
+whatsappConnectRoute.get("/chatwoot", async c => {
+ const [tenant] = await createDb(c.env.DB).select().from(schema.tenants).where(eq(schema.tenants.id, c.get("tenantId"))).limit(1);
+ return c.json({ connected: !!tenant?.chatwoot_inbox_id, accountId: tenant?.chatwoot_account_id, inboxId: tenant?.chatwoot_inbox_id, baseUrl: "https://app.aiingo.com" });
+});
+whatsappConnectRoute.post("/chatwoot", async c => {
+ const parsed = z.object({ accountId: z.number().int().positive(), inboxId: z.number().int().positive(), token: z.string().min(1).max(2048) }).safeParse(await c.req.json());
+ if (!parsed.success) return c.json({ error: "Account ID, inbox ID and token are required" }, 400);
+ const { accountId, inboxId, token } = parsed.data;
+ const db = createDb(c.env.DB);
+ const [claimed] = await db.select({ id: schema.tenants.id }).from(schema.tenants).where(eq(schema.tenants.chatwoot_inbox_id, inboxId)).limit(1);
+ if (claimed && claimed.id !== c.get("tenantId")) return c.json({ error: "Inbox is already connected" }, 409);
+ const config = { baseUrl: "https://app.aiingo.com", accountId, apiAccessToken: token };
+ const response = await fetch(`${config.baseUrl}/api/v1/accounts/${accountId}/inboxes/${inboxId}`, { headers: { api_access_token: token } });
+ if (!response.ok) return c.json({ error: "Cannot access this inbox. Check IDs and token permissions." }, 400);
+ const inbox = await response.json() as { id: number };
+ if (inbox.id !== inboxId) return c.json({ error: "Inbox mismatch" }, 400);
+ const webhookUrl = `${new URL(c.req.url).origin}/webhooks/chatwoot?token=${c.env.CHATWOOT_WEBHOOK_TOKEN}`;
+ if (!await registerAccountWebhook(config, webhookUrl)) return c.json({ error: "Token must allow account webhook creation" }, 400);
+ await db.update(schema.tenants).set({ chatwoot_account_id: accountId, chatwoot_inbox_id: inboxId, chatwoot_token_encrypted: await encryptToken(token, c.env.JWT_SECRET) }).where(eq(schema.tenants.id, c.get("tenantId")));
+ return c.json({ ok: true });
+});
 
 /** Frontend needs these to initialize the Meta Embedded Signup widget — neither value is secret. */
 whatsappConnectRoute.get("/config", (c) => {

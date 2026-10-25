@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, getTableColumns } from "drizzle-orm";
 import { createDb, schema } from "@serviceos/platform";
 import type { AppContext } from "@serviceos/platform";
 import { bookingCalendarId } from "../durable-objects/booking-calendar";
@@ -9,7 +9,7 @@ import { createJobReminderTask, createStaffAssignmentTask } from "../lib/tasks";
 import { findAvailableStaff } from "../lib/staff-matching";
 import { createAndSendDepositInvoice } from "../lib/deposits";
 import { recordCompletionIfNew } from "../lib/loyalty";
-import { ensureInvoiceForCompletedBooking } from "../lib/billing-on-completion";
+import { ensureInvoiceForCompletedBooking, sendCompletionNotifications } from "../lib/billing-on-completion";
 
 export const bookingsRoute = new Hono<AppContext>();
 
@@ -106,9 +106,10 @@ bookingsRoute.get("/mine", async (c) => {
   if (status) conditions.push(eq(schema.bookings.status, status));
   if (from) conditions.push(gte(schema.bookings.scheduled_start, from));
   if (to) conditions.push(lte(schema.bookings.scheduled_start, to));
-  const rows = await db
-    .select()
+  const rows = await db.select({ ...getTableColumns(schema.bookings), customer_name: schema.customers.name, customer_phone: schema.customers.phone, service_name: schema.services.name })
     .from(schema.bookings)
+    .leftJoin(schema.customers, and(eq(schema.customers.id, schema.bookings.customer_id), eq(schema.customers.tenant_id, c.get("tenantId"))))
+    .leftJoin(schema.services, and(eq(schema.services.id, schema.bookings.service_id), eq(schema.services.tenant_id, c.get("tenantId"))))
     .where(and(...conditions));
   return c.json({ bookings: rows });
 });
@@ -293,15 +294,21 @@ bookingsRoute.post("/:id/status", async (c) => {
   const tenantId = c.get("tenantId");
   const bookingId = c.req.param("id");
   if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
-  await recordCompletionIfNew(db, tenantId, bookingId, parsed.data.status);
+
+  if (parsed.data.status === "completed") {
+  const [current] = await db.select().from(schema.bookings).where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId))).limit(1);
+  if (!current) return c.json({ error: "Not found" }, 404);
+  if (current.status === "cancelled" || new Date(current.scheduled_start).getTime() > Date.now()) return c.json({ error: "Cannot complete a cancelled or future visit" }, 409);
+  }
   await db
     .update(schema.bookings)
     .set({ status: parsed.data.status, updated_at: new Date().toISOString() })
     .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)));
   let invoiceId: string | undefined;
   if (parsed.data.status === "completed") {
-    const invoiceResult = await ensureInvoiceForCompletedBooking(db, tenantId, bookingId);
+    const invoiceResult = await ensureInvoiceForCompletedBooking(c.env, tenantId, bookingId);
     invoiceId = invoiceResult.invoiceId;
+    c.executionCtx.waitUntil(sendCompletionNotifications(c.env, tenantId));
   }
   return c.json({ ok: true, invoiceId });
 });
@@ -336,7 +343,10 @@ bookingsRoute.post("/:id/checkout", async (c) => {
   const tenantId = c.get("tenantId");
   const bookingId = c.req.param("id");
   if (!(await staffCanActOnBooking(c, db, tenantId, bookingId))) return c.json({ error: "Not your job" }, 403);
-  await recordCompletionIfNew(db, tenantId, bookingId, "completed");
+
+  const [current] = await db.select().from(schema.bookings).where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId))).limit(1);
+  if (!current) return c.json({ error: "Not found" }, 404);
+  if (current.status === "cancelled" || new Date(current.scheduled_start).getTime() > Date.now()) return c.json({ error: "Cannot complete a cancelled or future visit" }, 409);
   await db
     .update(schema.bookings)
     .set({
@@ -347,6 +357,7 @@ bookingsRoute.post("/:id/checkout", async (c) => {
       updated_at: new Date().toISOString(),
     })
     .where(and(eq(schema.bookings.id, bookingId), eq(schema.bookings.tenant_id, tenantId)));
-  const { invoiceId } = await ensureInvoiceForCompletedBooking(db, tenantId, bookingId);
+  const { invoiceId } = await ensureInvoiceForCompletedBooking(c.env, tenantId, bookingId);
+  c.executionCtx.waitUntil(sendCompletionNotifications(c.env, tenantId));
   return c.json({ ok: true, invoiceId });
 });
