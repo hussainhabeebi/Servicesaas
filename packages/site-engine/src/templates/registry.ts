@@ -93,6 +93,7 @@ export function renderSitePage(opts: {
   canonicalUrl: string;
   phone?: string;
   apiBaseUrl: string;
+  appUrl?: string;
 }): string {
   const theme = getTheme(opts.templateKey);
   const design = getDesign(opts.content.design);
@@ -246,6 +247,12 @@ ${design.fontHref ? `<link rel="preconnect" href="https://fonts.googleapis.com" 
   nav .links { display: none; align-items: center; gap: 1.4rem; }
   nav .links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
   @media (min-width: 720px) { nav .links { display: flex; } }
+  .login-menu { position:relative; font-size:14px; }
+  .login-menu summary { cursor:pointer; padding:12px; list-style:none; }
+  .login-menu > div { position:absolute; right:0; top:100%; min-width:170px; background:white; border:1px solid #e2e8f0; border-radius:14px; box-shadow:0 8px 24px #0001; }
+  .login-menu a { display:block; padding:14px; color:var(--ink); text-decoration:none; }
+  @media(max-width:600px) { header { padding:2rem 1rem !important; } .svc-grid { grid-template-columns:1fr 1fr; gap:10px; } .svc-card { padding:14px; border-radius:18px; } .svc-card h3 { font-size:15px; } nav { padding:8px 12px; } nav .brand { max-width:40%; font-size:14px; } .nav-book { padding:12px !important; } }
+  @media(prefers-reduced-motion:reduce) { * { animation:none !important; opacity:1 !important; scroll-behavior:auto !important; } }
   nav .nav-actions { display: flex; align-items: center; gap: 0.6rem; }
   nav .nav-book { background: var(--accent); color: #fff; border: none; padding: 0.55rem 1.15rem; border-radius: 999px; font-weight: 700; font-size: 0.86rem; cursor: pointer; }
 
@@ -396,6 +403,7 @@ ${design.css}
     <a href="#contact">Contact</a>
   </div>
   <div class="nav-actions">
+    <details class="login-menu"><summary aria-label="Open login menu">☰ Menu</summary><div><a href="${escapeHtml(opts.appUrl ?? 'https://app.servbazaar.com')}/login?role=staff">Staff login</a><a href="${escapeHtml(opts.appUrl ?? 'https://app.servbazaar.com')}/login?role=admin">Admin login</a></div></details>
     <button class="nav-book" type="button" onclick="openBooking()">Book Now</button>
   </div>
 </nav>

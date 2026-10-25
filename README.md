@@ -486,3 +486,13 @@ it can mint new admin accounts.
   separate state machine table — deliberately simple for the MVP flow in
   `bot-flow.ts`; a real multi-turn conversation engine would likely want
   a Durable Object per conversation instead.
+
+### Daily services, billing cycles and existing Chatwoot inboxes
+
+The public menu offers Staff login and Admin login (business owner/admin, not the platform operator console). Staff use Daily services to choose a date and complete assigned visits. The backend limits staff to their own jobs. Customer billing defaults to monthly; change it to weekly (Monday start) or per visit on Customers. Each completion appends one dated service line to the customer's draft cycle invoice, including VAT in the tenant currency. Repeated completion requests do not duplicate charges. Already sent invoices remain unchanged; later visits create a supplemental draft. Cycle invoices are reviewed and sent from Quotes & Invoices; there is no automatic cycle-end invoice sending.
+
+Apply migration `0011_completion_cycles_chatwoot.sql` before deploying the updated Workers. In Messaging, enter the client's account ID, inbox ID and administrator API access token for https://app.aiingo.com. The backend verifies inbox access, registers the inbound webhook and encrypts the token with a key derived from JWT_SECRET. Keep JWT_SECRET stable or reconnect credentials after rotation. The existing Meta signup flow remains available on demand.
+
+Completion notifications are sent in the background. Failed deliveries remain pending and the existing cron retries them. Chatwoot credentials must allow sending messages and creating account webhooks. WhatsApp free-form messages outside the service window may require an approved template; template delivery is not configured by this change. No live client messages are sent during development.
+
+Validation: `python tests/completion_billing.py`, workspace TypeScript checks, and tenant Vite production build. The SQL test applies every migration and checks duplicate charges, accumulated cycle totals, VAT and separate billing periods.

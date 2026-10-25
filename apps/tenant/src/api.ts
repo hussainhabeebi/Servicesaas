@@ -71,8 +71,10 @@ export interface Customer {
   is_repeat_customer: boolean;
   has_active_contract: boolean;
   completed_bookings_count: number;
+  billing_cycle: "weekly" | "monthly" | "per_service";
 }
 export interface Booking {
+  customer_name?: string; customer_phone?: string; service_name?: string;
   id: string;
   customer_id: string;
   staff_id: string | null;
@@ -317,6 +319,9 @@ export const api = {
   addManualDomain: (domain: string) => request<{ id: string; status: string }>("/api/domains/manual", { method: "POST", body: JSON.stringify({ domain }) }),
   activateManualDomain: (id: string) => request<{ status: string }>(`/api/domains/${id}/activate`, { method: "POST" }),
 
+  chatwootStatus: () => request<{ connected: boolean; accountId: number | null; inboxId: number | null }>("/api/whatsapp/chatwoot"),
+  chatwootConnect: (body: { accountId: number; inboxId: number; token: string }) => request<{ ok: boolean }>("/api/whatsapp/chatwoot", { method: "POST", body: JSON.stringify(body) }),
+  customerCycle: (id: string, billing_cycle: string) => request(`/api/customers/${id}`, { method: "PATCH", body: JSON.stringify({ billing_cycle }) }),
   whatsappConfig: () => request<{ metaAppId: string | null; embeddedSignupConfigId: string | null }>("/api/whatsapp/config"),
   whatsappStatus: () => request<{ connected: boolean; whatsappNumber: string | null; onboardingType: "coexistence" | "new_number" | null }>("/api/whatsapp/status"),
   whatsappConnect: (body: { code: string; wabaId?: string; phoneNumberId?: string; phoneNumber?: string; onboardingType?: "coexistence" | "new_number" }) =>

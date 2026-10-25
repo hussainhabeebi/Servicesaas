@@ -28,6 +28,7 @@ export function CustomersPage() {
             <th style={th}>Phone</th>
             <th style={th}>Tags</th>
             <th style={th}>Repeat</th>
+            <th style={th}>Billing cycle</th>
             <th style={th}>Contract</th>
             <th style={th}>Loyalty</th>
           </tr>
@@ -45,6 +46,7 @@ export function CustomersPage() {
                 ))}
               </td>
               <td style={td}>{c.is_repeat_customer ? "Yes" : "—"}</td>
+              <td style={td}><select aria-label={`Billing cycle for ${c.name}`} value={c.billing_cycle} onChange={async e => { const cycle = e.target.value as Customer["billing_cycle"]; try { await api.customerCycle(c.id, cycle); setCustomers(rows => rows.map(row => row.id === c.id ? { ...row, billing_cycle: cycle } : row)); } catch (e) { setError(String(e)); } }}><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="per_service">Per visit</option></select></td>
               <td style={td}>{c.has_active_contract ? "Active" : "—"}</td>
               <td style={td}>
                 {c.completed_bookings_count >= LOYALTY_MILESTONE ? (

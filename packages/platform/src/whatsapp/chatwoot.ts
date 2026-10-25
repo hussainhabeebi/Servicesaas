@@ -183,9 +183,26 @@ async function findOrCreateContact(config: ChatwootConfig, inboxId: number, phon
 }
 
 async function findOrCreateConversation(config: ChatwootConfig, inboxId: number, contactId: number): Promise<number | null> {
+  const existing = await chatwootFetch(config, `/contacts/${contactId}/conversations`);
+  if (existing.ok) {
+    const json = await existing.json() as { payload?: Array<{ id: number; inbox_id: number; status: string }> };
+    const conversation = json.payload?.find(c => c.inbox_id === inboxId && c.status !== "resolved");
+    if (conversation) return conversation.id;
+  }
+  const contact = await chatwootFetch(config, `/contacts/${contactId}`);
+  if (!contact.ok) return null;
+  const details = await contact.json() as { payload?: { contact_inboxes?: Array<{ source_id: string; inbox: { id: number } }> } };
+  let sourceId = details.payload?.contact_inboxes?.find(c => c.inbox.id === inboxId)?.source_id;
+  if (!sourceId) {
+    const linked = await chatwootFetch(config, `/contacts/${contactId}/contact_inboxes`, { method: "POST", body: JSON.stringify({ inbox_id: inboxId }) });
+    if (!linked.ok) return null;
+    const data = await linked.json() as { source_id?: string };
+    sourceId = data.source_id;
+  }
+  if (!sourceId) return null;
   const res = await chatwootFetch(config, `/conversations`, {
     method: "POST",
-    body: JSON.stringify({ source_id: `contact_${contactId}`, inbox_id: inboxId, contact_id: contactId }),
+    body: JSON.stringify({ source_id: sourceId, inbox_id: inboxId, contact_id: contactId }),
   });
   if (!res.ok) return null;
   const json = (await res.json()) as { id?: number };

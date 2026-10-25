@@ -7,6 +7,7 @@ import type { AppContext } from "@serviceos/platform";
 export const customersRoute = new Hono<AppContext>();
 
 const customerSchema = z.object({
+  billing_cycle: z.enum(["weekly", "monthly", "per_service"]).default("monthly"),
   name: z.string().min(1),
   phone: z.string().min(6),
   email: z.string().email().optional(),
@@ -60,6 +61,7 @@ customersRoute.get("/:id", async (c) => {
 });
 
 customersRoute.patch("/:id", async (c) => {
+  if (c.get("tenantRole") === "staff") return c.json({ error: "Forbidden" }, 403);
   const parsed = customerSchema.partial().safeParse(await c.req.json());
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const db = createDb(c.env.DB);

@@ -106,6 +106,7 @@ app.get("*", async (c) => {
     canonicalUrl: `https://${host}/`,
     phone: tenant.whatsapp_number ?? content.phone,
     apiBaseUrl: c.env.API_BASE_URL,
+    appUrl: `https://app.${c.env.ROOT_DOMAIN}`,
   });
 
   return c.html(html);

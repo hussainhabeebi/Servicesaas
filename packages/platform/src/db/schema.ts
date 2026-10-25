@@ -36,6 +36,7 @@ export const tenants = sqliteTable(
     whatsapp_number: text("whatsapp_number"), // E.164, for the public wa.me click-to-chat link
     chatwoot_account_id: integer("chatwoot_account_id"),
     chatwoot_inbox_id: integer("chatwoot_inbox_id"),
+    chatwoot_token_encrypted: text("chatwoot_token_encrypted"),
     // Which Embedded Signup path the tenant completed — 'coexistence' means
     // they kept their existing WhatsApp Business app number connected
     // (Meta's app+API coexistence feature), 'new_number' means they set up
@@ -148,6 +149,7 @@ export const customers = sqliteTable(
     email: text("email"),
     notes: text("notes"),
     tags: text("tags", { mode: "json" }).$type<string[]>().default([]), // VIP, at-risk, referral
+    billing_cycle: text("billing_cycle").notNull().default("monthly"),
     preferences: text("preferences", { mode: "json" }).$type<Record<string, unknown>>().default({}),
     is_repeat_customer: integer("is_repeat_customer", { mode: "boolean" }).notNull().default(false),
     has_active_contract: integer("has_active_contract", { mode: "boolean" }).notNull().default(false),

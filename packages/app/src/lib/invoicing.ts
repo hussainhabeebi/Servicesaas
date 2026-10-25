@@ -1,3 +1,4 @@
+import { getChatwootConfig } from "../lib/chatwoot-config";
 import { eq, and } from "drizzle-orm";
 import { createDb, schema, sendChatwootProactiveMessage, type Env } from "@serviceos/platform";
 import { renderInvoicePdf } from "./pdf";
@@ -44,7 +45,7 @@ export async function sendInvoiceViaWhatsApp(env: Env, tenantId: string, invoice
   const waResult =
     tenant.chatwoot_inbox_id && tenant.chatwoot_account_id
       ? await sendChatwootProactiveMessage(
-          { baseUrl: env.CHATWOOT_BASE_URL, apiAccessToken: env.CHATWOOT_AGENT_BOT_TOKEN, accountId: tenant.chatwoot_account_id },
+          await getChatwootConfig(env, tenantId),
           tenant.chatwoot_inbox_id,
           customer.phone,
           customer.name,

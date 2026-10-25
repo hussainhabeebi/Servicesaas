@@ -1,25 +1,25 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { App } from "./App";
-import { LoginPage } from "./pages/Login";
-import { TodayPage } from "./pages/Today";
-import { LeadsPage } from "./pages/Leads";
-import { CustomersPage } from "./pages/Customers";
-import { BookingsPage } from "./pages/Bookings";
-import { InvoicesPage } from "./pages/Invoices";
-import { ServicesPage } from "./pages/Services";
-import { WebsitePage } from "./pages/Website";
-import { DomainPage } from "./pages/Domain";
-import { StaffPage } from "./pages/Staff";
-import { TeamPage } from "./pages/Team";
-import { ConnectWhatsAppPage } from "./pages/ConnectWhatsApp";
-import { TasksPage } from "./pages/Tasks";
-import { ReportsPage } from "./pages/Reports";
-import { BroadcastsPage } from "./pages/Broadcasts";
-import { VendorBillsPage } from "./pages/VendorBills";
-import { BillingPage } from "./pages/Billing";
-import { MyJobsPage } from "./pages/MyJobs";
+const LoginPage = lazy(() => import("./pages/Login").then(m => ({ default: m.LoginPage })));
+const TodayPage = lazy(() => import("./pages/Today").then(m => ({ default: m.TodayPage })));
+const LeadsPage = lazy(() => import("./pages/Leads").then(m => ({ default: m.LeadsPage })));
+const CustomersPage = lazy(() => import("./pages/Customers").then(m => ({ default: m.CustomersPage })));
+const BookingsPage = lazy(() => import("./pages/Bookings").then(m => ({ default: m.BookingsPage })));
+const InvoicesPage = lazy(() => import("./pages/Invoices").then(m => ({ default: m.InvoicesPage })));
+const ServicesPage = lazy(() => import("./pages/Services").then(m => ({ default: m.ServicesPage })));
+const WebsitePage = lazy(() => import("./pages/Website").then(m => ({ default: m.WebsitePage })));
+const DomainPage = lazy(() => import("./pages/Domain").then(m => ({ default: m.DomainPage })));
+const StaffPage = lazy(() => import("./pages/Staff").then(m => ({ default: m.StaffPage })));
+const TeamPage = lazy(() => import("./pages/Team").then(m => ({ default: m.TeamPage })));
+const ConnectWhatsAppPage = lazy(() => import("./pages/ConnectWhatsApp").then(m => ({ default: m.ConnectWhatsAppPage })));
+const TasksPage = lazy(() => import("./pages/Tasks").then(m => ({ default: m.TasksPage })));
+const ReportsPage = lazy(() => import("./pages/Reports").then(m => ({ default: m.ReportsPage })));
+const BroadcastsPage = lazy(() => import("./pages/Broadcasts").then(m => ({ default: m.BroadcastsPage })));
+const VendorBillsPage = lazy(() => import("./pages/VendorBills").then(m => ({ default: m.VendorBillsPage })));
+const BillingPage = lazy(() => import("./pages/Billing").then(m => ({ default: m.BillingPage })));
+const MyJobsPage = lazy(() => import("./pages/MyJobs").then(m => ({ default: m.MyJobsPage })));
 import { setToken } from "./api";
 
 // Landing page hands off a fresh JWT via ?token=... after signup/login,
@@ -34,7 +34,7 @@ if (handoffToken) {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <Routes>
+      <Suspense fallback={<p role="status" style={{ padding: 24 }}>Loading…</p>}><Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<App />}>
           <Route index element={<TodayPage />} />
@@ -55,7 +55,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="billing" element={<BillingPage />} />
           <Route path="my-jobs" element={<MyJobsPage />} />
         </Route>
-      </Routes>
+      </Routes></Suspense>
     </BrowserRouter>
   </React.StrictMode>
 );
