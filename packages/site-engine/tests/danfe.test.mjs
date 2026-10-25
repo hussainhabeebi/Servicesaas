@@ -157,3 +157,27 @@ test('Dubai and Sharjah hourly rates remain distinct', async () => {
   assert.deepEqual(data['@graph'][0].hasOfferCatalog.itemListElement.map(item=>item.price),rates);
  }
 });
+
+
+test('active Danfe account connects with default site content, without a design marker', async () => {
+ const raw = await readFile(new URL('danfe/connection.ts', source), 'utf8');
+ const code = ts.transpileModule(raw.replace(/^import .*?;$/gm, '').replace(/export /g, ''), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+ const tenant = { subdomain: 'danfe.servbazaar.com', status: 'active', businessName: 'Danfe' };
+ const service = { id: 'clean-3h', name: 'Normal cleaning · 3 hours', price: 75, duration_minutes: 180 };
+ async function resolve(rows) {
+   let index = 0;
+   const db = { select() { const query = { from() { return query; }, where() { return query; }, limit() { return Promise.resolve(rows[index++]); }, then(ok, fail) { return Promise.resolve(rows[index++]).then(ok, fail); } }; return query; } };
+   const columns = new Proxy({}, { get: (_, key) => key });
+   const context = { createDb: () => db, schema: { tenants: columns, sites: columns, services: columns }, eq: () => true, and: () => true, console, result: null };
+   runInNewContext(code + ';globalThis.resolveRuntime = getDanfeRuntime;', context);
+   return context.resolveRuntime({ DB: {}, API_BASE_URL: 'https://api.servbazaar.com' });
+ }
+ const result = await resolve([[tenant], [{ content: { businessName: 'Danfe', languages: ['en'] } }], [service]]);
+ assert.equal(result.runtime.connected, true);
+ assert.equal(result.runtime.services[0].price, 75);
+ assert.equal(result.siteHost, tenant.subdomain);
+ const inactive = await resolve([[{ ...tenant, status: 'suspended' }]]);
+ assert.equal(inactive.runtime.connected, false);
+ const noSite = await resolve([[tenant], [], [service]]);
+ assert.equal(noSite.runtime.connected, true);
+});
